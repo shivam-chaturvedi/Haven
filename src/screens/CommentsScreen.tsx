@@ -7,6 +7,7 @@ import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigation';
 import { useAppContext, Comment } from '../context/AppContext';
 import { launchImageLibrary } from 'react-native-image-picker';
+import { getAvatarById } from '../constants/avatars';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Comments'>;
@@ -15,13 +16,14 @@ type Props = {
 
 const CommentsScreen = ({ navigation, route }: Props) => {
   const { storyId } = route.params;
-  const { comments, addComment, toggleLikeComment } = useAppContext();
+  const { comments, addComment, toggleLikeComment, userProfile } = useAppContext();
   
   const [inputText, setInputText] = useState('');
   const [replyTo, setReplyTo] = useState<{id: string, author: string} | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const storyComments = comments.filter(c => c.storyId === storyId);
+  const currentUserAvatar = getAvatarById(userProfile?.avatar_url);
 
   const handleSend = () => {
     if (inputText.trim() || selectedImage) {
@@ -39,30 +41,35 @@ const CommentsScreen = ({ navigation, route }: Props) => {
     }
   };
 
-  const CommentItem = ({ comment, depth = 0 }: { comment: Comment, depth?: number }) => (
-    <View style={{ ...styles.commentItem, marginLeft: depth * 32 }}>
-      <View style={styles.avatarPlaceholder} />
-      <View style={styles.commentContent}>
-        <View style={styles.commentHeader}>
-          <Text style={styles.commentName}>{comment.author}</Text>
-          <Text style={styles.commentTime}>{comment.time}</Text>
+  const CommentItem = ({ comment, depth = 0 }: { comment: Comment, depth?: number }) => {
+    const authorAvatar = getAvatarById(comment.avatar_url);
+    return (
+      <View style={{ ...styles.commentItem, marginLeft: depth * 32 }}>
+        <View style={[styles.avatarPlaceholder, authorAvatar ? { backgroundColor: authorAvatar.bgColor, justifyContent: 'center', alignItems: 'center' } : {}]}>
+          {authorAvatar && <authorAvatar.icon color={authorAvatar.color} size={18} />}
         </View>
-        <Text style={styles.commentText}>{comment.text}</Text>
-        {comment.imageUri && (
-          <Image source={{ uri: comment.imageUri }} style={styles.commentImage} />
-        )}
-        <TouchableOpacity onPress={() => setReplyTo({ id: comment.id, author: comment.author })}>
-          <Text style={styles.replyText}>Reply</Text>
-        </TouchableOpacity>
+        <View style={styles.commentContent}>
+          <View style={styles.commentHeader}>
+            <Text style={styles.commentName}>{comment.author}</Text>
+            <Text style={styles.commentTime}>{comment.time}</Text>
+          </View>
+          <Text style={styles.commentText}>{comment.text}</Text>
+          {comment.imageUri && (
+            <Image source={{ uri: comment.imageUri }} style={styles.commentImage} />
+          )}
+          <TouchableOpacity onPress={() => setReplyTo({ id: comment.id, author: comment.author })}>
+            <Text style={styles.replyText}>Reply</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.likeContainer}>
+          <TouchableOpacity onPress={() => toggleLikeComment(comment.id)}>
+            <Heart color={comment.isLiked ? "#ef4444" : "#94a3b8"} fill={comment.isLiked ? "#ef4444" : "none"} size={16} />
+          </TouchableOpacity>
+          <Text style={styles.likeCount}>{comment.likes > 0 ? comment.likes : 0}</Text>
+        </View>
       </View>
-      <View style={styles.likeContainer}>
-        <TouchableOpacity onPress={() => toggleLikeComment(comment.id)}>
-          <Heart color={comment.isLiked ? "#ef4444" : "#94a3b8"} fill={comment.isLiked ? "#ef4444" : "none"} size={16} />
-        </TouchableOpacity>
-        <Text style={styles.likeCount}>{comment.likes > 0 ? comment.likes : 0}</Text>
-      </View>
-    </View>
-  );
+    );
+  };
 
   const renderComments = (commentsList: Comment[], depth = 0) => {
     return commentsList.map(c => (
@@ -122,7 +129,9 @@ const CommentsScreen = ({ navigation, route }: Props) => {
           </View>
           
           <View style={styles.inputContainerRow}>
-            <View style={styles.inputAvatarPlaceholder} />
+            <View style={[styles.inputAvatarPlaceholder, currentUserAvatar ? { backgroundColor: currentUserAvatar.bgColor, justifyContent: 'center', alignItems: 'center' } : {}]}>
+              {currentUserAvatar && <currentUserAvatar.icon color={currentUserAvatar.color} size={18} />}
+            </View>
             <View style={styles.inputWrapper}>
               <TextInput 
                 style={styles.textInput} 

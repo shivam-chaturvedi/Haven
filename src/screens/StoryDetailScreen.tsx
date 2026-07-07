@@ -5,6 +5,7 @@ import { ArrowLeft, Bookmark, Heart, MessageCircle, Share2 } from 'lucide-react-
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigation';
 import { useAppContext } from '../context/AppContext';
+import { getAvatarById } from '../constants/avatars';
 
 type Props = {
   navigation: any; // Using any for brevity or proper navigation prop if desired
@@ -28,6 +29,8 @@ const StoryDetailScreen = ({ navigation, route }: Props) => {
     }
   };
 
+  const authorAvatar = getAvatarById(story.avatar_url);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       {/* Header */}
@@ -47,8 +50,8 @@ const StoryDetailScreen = ({ navigation, route }: Props) => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Author Info */}
         <View style={styles.authorSection}>
-          <View style={styles.avatarPlaceholder}>
-            {/* Avatar Image */}
+          <View style={[styles.avatarPlaceholder, authorAvatar ? { backgroundColor: authorAvatar.bgColor, justifyContent: 'center', alignItems: 'center' } : {}]}>
+            {authorAvatar && <authorAvatar.icon color={authorAvatar.color} size={24} />}
           </View>
           <View style={styles.authorMeta}>
             <Text style={styles.authorName}>{story.author}</Text>

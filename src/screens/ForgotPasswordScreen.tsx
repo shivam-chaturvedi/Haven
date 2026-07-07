@@ -4,53 +4,34 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigation';
 import { db } from '../lib/db';
+import { ArrowLeft } from 'lucide-react-native';
 
 type Props = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'SignUp'>;
+  navigation: NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>;
 };
 
-const SignUpScreen = ({ navigation }: Props) => {
-  const [fullName, setFullName] = useState('');
+const ForgotPasswordScreen = ({ navigation }: Props) => {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSignUp = async () => {
-    if (!fullName || !email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields.');
-      return;
-    }
-
-    // Relaxed email validation
-    if (!email.includes('@') || !email.includes('.')) {
-      Alert.alert('Error', 'Please enter a valid email address.');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match.');
+  const handleResetPassword = async () => {
+    if (!email) {
+      Alert.alert('Error', 'Please enter your email address.');
       return;
     }
 
     setLoading(true);
-    const { data, error } = await db.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        }
-      }
-    });
+    const { error } = await db.auth.resetPasswordForEmail(email);
     setLoading(false);
 
     if (error) {
-      Alert.alert('Registration Failed', error.message);
+      Alert.alert('Reset Failed', error.message);
     } else {
-      // Depending on your backend config, it might require email confirmation.
-      // If auto-confirm is on, we just proceed.
-      navigation.navigate('OnboardingStep1');
+      Alert.alert(
+        'Success',
+        'If an account exists with this email, a password reset link has been sent.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
     }
   };
 
@@ -61,27 +42,24 @@ const SignUpScreen = ({ navigation }: Props) => {
         style={styles.keyboardView}
       >
         <ScrollView contentContainerStyle={styles.container}>
-          
-          {/* Logo Placeholder */}
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <ArrowLeft color="#1e293b" size={24} />
+          </TouchableOpacity>
+
           <View style={styles.logoContainer}>
             <View style={styles.logoOuterCircle}>
               <View style={styles.logoInnerCircle}>
                 <Text style={styles.logoText}>HAVEN</Text>
-                {/* Dove Icon placeholder */}
               </View>
             </View>
           </View>
 
-          <Text style={styles.title}>SIGN UP</Text>
+          <Text style={styles.title}>FORGOT PASSWORD</Text>
+          <Text style={styles.subtitle}>
+            Enter your email address to receive a password reset link.
+          </Text>
 
           <View style={styles.formContainer}>
-            <TextInput 
-              style={styles.input} 
-              placeholder="Full Name" 
-              placeholderTextColor="#94a3b8"
-              value={fullName}
-              onChangeText={setFullName}
-            />
             <TextInput 
               style={styles.input} 
               placeholder="Email Address" 
@@ -91,37 +69,17 @@ const SignUpScreen = ({ navigation }: Props) => {
               value={email}
               onChangeText={setEmail}
             />
-            <TextInput 
-              style={styles.input} 
-              placeholder="Password" 
-              placeholderTextColor="#94a3b8"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-            />
-            <TextInput 
-              style={styles.input} 
-              placeholder="Confirm Password" 
-              placeholderTextColor="#94a3b8"
-              secureTextEntry
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-            />
 
             <TouchableOpacity 
               style={[styles.button, loading && styles.buttonDisabled]} 
-              onPress={handleSignUp}
+              onPress={handleResetPassword}
               disabled={loading}
             >
               {loading ? (
                 <ActivityIndicator color="#1e293b" />
               ) : (
-                <Text style={styles.buttonText}>SIGN UP</Text>
+                <Text style={styles.buttonText}>SEND LINK</Text>
               )}
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-              <Text style={styles.loginLink}>Already Have An Account?</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -141,8 +99,13 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 40,
+    paddingTop: 16,
     alignItems: 'center',
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    marginBottom: 20,
+    padding: 4,
   },
   logoContainer: {
     marginBottom: 32,
@@ -172,11 +135,19 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   title: {
-    fontSize: 48,
+    fontSize: 32,
     fontWeight: '900',
     color: '#1e293b',
-    marginBottom: 40,
-    letterSpacing: 2,
+    marginBottom: 12,
+    letterSpacing: 1,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: 32,
+    paddingHorizontal: 16,
   },
   formContainer: {
     width: '100%',
@@ -206,13 +177,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
   },
-  loginLink: {
-    color: '#0ea5e9',
-    fontSize: 14,
-    fontWeight: '700',
-    textAlign: 'right',
-    marginTop: 8,
-  },
 });
 
-export default SignUpScreen;
+export default ForgotPasswordScreen;

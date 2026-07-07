@@ -7,12 +7,17 @@ import { RootStackParamList } from '../navigation/AppNavigation';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { RichText, Toolbar, useEditorBridge, TenTapStartKit, PlaceholderBridge } from '@10play/tentap-editor';
 import DatePicker from 'react-native-date-picker';
+import { useAppContext } from '../context/AppContext';
+import { getAvatarById } from '../constants/avatars';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'NewPost'>;
 };
 
 const NewPostScreen = ({ navigation }: Props) => {
+  const { userProfile } = useAppContext();
+  const currentUserAvatar = getAvatarById(userProfile?.avatar_url);
+
   const editor = useEditorBridge({
     autofocus: false,
     avoidIosKeyboard: true,
@@ -116,9 +121,11 @@ const NewPostScreen = ({ navigation }: Props) => {
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled={true}>
           {/* User Info */}
           <View style={styles.userInfo}>
-            <View style={styles.avatarPlaceholder} />
+            <View style={[styles.avatarPlaceholder, currentUserAvatar && !postAnonymously ? { backgroundColor: currentUserAvatar.bgColor, justifyContent: 'center', alignItems: 'center' } : {}]}>
+              {currentUserAvatar && !postAnonymously && <currentUserAvatar.icon color={currentUserAvatar.color} size={24} />}
+            </View>
             <View>
-              <Text style={styles.userName}>{postAnonymously ? 'Anonymous User' : 'William Jones'}</Text>
+              <Text style={styles.userName}>{postAnonymously ? 'Anonymous User' : (userProfile?.full_name || 'Anonymous User')}</Text>
               <View style={styles.privacyDropdown}>
                 <Users color="#475569" size={12} />
                 <Text style={styles.privacyText}>Friends</Text>

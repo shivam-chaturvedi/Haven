@@ -1,15 +1,20 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, ChevronRight, Bell, Moon, Lock, Globe, User, Shield, HelpCircle, FileText, Home, Share, PartyPopper } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigation';
+import { useAppContext } from '../context/AppContext';
+import { getAvatarById } from '../constants/avatars';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Settings'>;
 };
 
 const SettingsScreen = ({ navigation }: Props) => {
+  const { userProfile } = useAppContext();
+  const selectedAvatar = getAvatarById(userProfile?.avatar_url);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       {/* Header */}
@@ -23,25 +28,19 @@ const SettingsScreen = ({ navigation }: Props) => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* User Banner */}
         <TouchableOpacity style={styles.userBanner} onPress={() => navigation.navigate('EditProfile')}>
-          <View style={styles.avatarPlaceholder} />
+          {selectedAvatar ? (
+            <View style={[styles.avatarPlaceholder, { backgroundColor: selectedAvatar.bgColor, justifyContent: 'center', alignItems: 'center' }]}>
+              <selectedAvatar.icon color={selectedAvatar.color} size={24} />
+            </View>
+          ) : (
+            <View style={styles.avatarPlaceholder} />
+          )}
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>William Jones</Text>
+            <Text style={styles.userName}>{userProfile?.full_name || 'Anonymous'}</Text>
             <Text style={styles.userSub}>View and edit your profile</Text>
           </View>
           <ChevronRight color="#94a3b8" size={20} />
         </TouchableOpacity>
-
-        {/* PREFERENCES */}
-        <Text style={styles.sectionTitle}>PREFERENCES</Text>
-        <View style={styles.card}>
-          <View style={[styles.row, styles.borderBottom]}>
-            <View style={styles.rowLeft}>
-              <Bell color="#1e293b" size={20} />
-              <Text style={styles.rowText}>Push notifications</Text>
-            </View>
-            <Switch value={true} onValueChange={() => {}} trackColor={{ false: '#e2e8f0', true: '#facc15' }} />
-          </View>
-        </View>
 
         {/* ACCOUNT */}
         <Text style={styles.sectionTitle}>ACCOUNT</Text>

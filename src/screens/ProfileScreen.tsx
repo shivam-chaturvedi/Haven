@@ -1,41 +1,56 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, FlatList, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, FlatList, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Settings, Bookmark, Home, Share, PartyPopper, User, Heart, Pencil, LogOut, Cat, Dog, Bird, Smile, Sun, Star, Music, Zap, X } from 'lucide-react-native';
+import { Settings, Bookmark, Home, Share, PartyPopper, User, Heart, Pencil, LogOut, X, Trash2 } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigation';
+import { useAppContext } from '../context/AppContext';
+import { DEFAULT_AVATARS, getAvatarById } from '../constants/avatars';
+import { db } from '../lib/db';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 };
 
-// 9 Default Avatars
-const DEFAULT_AVATARS = [
-  { id: 'cat', icon: Cat, bgColor: '#ffedd5', color: '#f97316' },     // Orange
-  { id: 'dog', icon: Dog, bgColor: '#fef3c7', color: '#d97706' },     // Brown/Amber
-  { id: 'bird', icon: Bird, bgColor: '#e0f2fe', color: '#0ea5e9' },   // Blue
-  { id: 'smile', icon: Smile, bgColor: '#fef08a', color: '#eab308' }, // Yellow
-  { id: 'sun', icon: Sun, bgColor: '#ffedd5', color: '#f59e0b' },     // Golden
-  { id: 'star', icon: Star, bgColor: '#f3e8ff', color: '#a855f7' },   // Purple
-  { id: 'heart', icon: Heart, bgColor: '#fee2e2', color: '#ef4444' }, // Red
-  { id: 'music', icon: Music, bgColor: '#fce7f3', color: '#ec4899' }, // Pink
-  { id: 'zap', icon: Zap, bgColor: '#ccfbf1', color: '#14b8a6' },     // Cyan/Teal
-];
-
 const screenWidth = Dimensions.get('window').width;
 
 const ProfileScreen = ({ navigation }: Props) => {
-  const [selectedAvatar, setSelectedAvatar] = useState<any>(null); // null means default
+  const { userProfile, stories, updateUserAvatar } = useAppContext();
   const [isModalVisible, setIsModalVisible] = useState(false);
 
-  const handleSelectAvatar = (avatar: any) => {
-    setSelectedAvatar(avatar);
+  const handleSelectAvatar = async (avatar: any) => {
+    await updateUserAvatar(avatar.id);
     setIsModalVisible(false);
   };
 
+  const handleLogout = () => {
+    Alert.alert('Log out', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Log out', style: 'destructive', onPress: async () => {
+        await db.auth.signOut();
+        navigation.replace('Login');
+      }}
+    ]);
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert('Delete Account', 'Are you sure you want to permanently delete your account? This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        await db.rpc('delete_user');
+        await db.auth.signOut();
+        navigation.replace('Login');
+      }}
+    ]);
+  };
+
+  const myStories = stories.filter(s => s.author === userProfile?.full_name);
+  const selectedAvatar = getAvatarById(userProfile?.avatar_url);
+
+  // No local loading state needed, handled by RootNavigator in AppNavigation
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Profile</Text>
         <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Settings')}>
@@ -44,7 +59,6 @@ const ProfileScreen = ({ navigation }: Props) => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Profile Info */}
         <View style={styles.profileInfo}>
           <View style={styles.avatarContainer}>
             {selectedAvatar ? (
@@ -55,60 +69,49 @@ const ProfileScreen = ({ navigation }: Props) => {
               <View style={styles.avatarPlaceholder} />
             )}
             
-            {/* Edit Avatar Pencil Button */}
             <TouchableOpacity style={styles.editAvatarBtn} onPress={() => setIsModalVisible(true)}>
               <Pencil color="#FFFFFF" size={16} />
             </TouchableOpacity>
           </View>
-          <Text style={styles.profileName}>William Jones</Text>
-          <Text style={styles.profileLocation}>Manchester, UK</Text>
+          <Text style={styles.profileName}>{userProfile?.full_name || 'Anonymous'}</Text>
+          {userProfile?.bio ? (
+            <Text style={styles.profileBio}>{userProfile.bio}</Text>
+          ) : null}
         </View>
 
-        {/* Stats Card */}
         <View style={styles.statsCard}>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>24</Text>
+            <Text style={styles.statNumber}>{myStories.length}</Text>
             <Text style={styles.statLabel}>Stories</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>1.2k</Text>
+            <Text style={styles.statNumber}>-</Text>
             <Text style={styles.statLabel}>Readers</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>186</Text>
+            <Text style={styles.statNumber}>{myStories.reduce((acc, curr) => acc + curr.likeCount, 0)}</Text>
             <Text style={styles.statLabel}>Likes</Text>
           </View>
         </View>
 
-        {/* Write Story Button */}
         <TouchableOpacity style={styles.writeButton} onPress={() => navigation.navigate('NewPost')}>
           <Text style={styles.writeButtonText}>+ Write a new story</Text>
         </TouchableOpacity>
 
-        {/* My Stories */}
-        <Text style={styles.sectionTitle}>My Stories</Text>
+        {myStories.length > 0 && <Text style={styles.sectionTitle}>My Stories</Text>}
 
-        <TouchableOpacity style={styles.storyCard} onPress={() => navigation.navigate('StoryDetail')}>
-          <View style={[styles.storyAvatar, { backgroundColor: '#fca5a5' }]} />
-          <View style={styles.storyTextContainer}>
-            <Text style={styles.storyTitle}>Brave Little Lily: A Story of Courage</Text>
-            <Text style={styles.storyDesc} numberOfLines={2}>
-              Once upon a time, in a quiet little village, there lived a brave and curious little girl named Lily. Lil...
-            </Text>
-          </View>
-        </TouchableOpacity>
+        {myStories.map(story => (
+          <TouchableOpacity key={story.id} style={styles.storyCard} onPress={() => navigation.navigate('StoryDetail', { storyId: story.id })}>
+            <View style={[styles.storyAvatar, { backgroundColor: selectedAvatar ? selectedAvatar.bgColor : '#fca5a5', justifyContent: 'center', alignItems: 'center' }]}>
+              {selectedAvatar && <selectedAvatar.icon color={selectedAvatar.color} size={24} />}
+            </View>
+            <View style={styles.storyTextContainer}>
+              <Text style={styles.storyTitle}>{story.title}</Text>
+              <Text style={styles.storyDesc} numberOfLines={2}>{story.text}</Text>
+            </View>
+          </TouchableOpacity>
+        ))}
 
-        <TouchableOpacity style={styles.storyCard} onPress={() => navigation.navigate('StoryDetail')}>
-          <View style={[styles.storyAvatar, { backgroundColor: '#fef08a' }]} />
-          <View style={styles.storyTextContainer}>
-            <Text style={styles.storyTitle}>Stella The Star</Text>
-            <Text style={styles.storyDesc} numberOfLines={2}>
-              Once upon a time, in a tiny, faraway galaxy, there lived a little star named Stella. Stella was ...
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Settings Menu Card */}
         <View style={styles.settingsMenuCard}>
           <TouchableOpacity style={[styles.menuRow, styles.menuRowBorder]} onPress={() => navigation.navigate('SavedStories')}>
             <Bookmark color="#1e293b" size={20} />
@@ -122,16 +125,19 @@ const ProfileScreen = ({ navigation }: Props) => {
             <Pencil color="#1e293b" size={20} />
             <Text style={styles.menuText}>Edit profile</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuRow} onPress={() => navigation.navigate('Login')}>
+          <TouchableOpacity style={[styles.menuRow, styles.menuRowBorder]} onPress={handleLogout}>
             <LogOut color="#ef4444" size={20} />
             <Text style={[styles.menuText, { color: '#ef4444' }]}>Log out</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuRow} onPress={handleDeleteAccount}>
+            <Trash2 color="#dc2626" size={20} />
+            <Text style={[styles.menuText, { color: '#dc2626' }]}>Delete Account</Text>
           </TouchableOpacity>
         </View>
         
         <View style={{ height: 20 }} />
       </ScrollView>
 
-      {/* Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Home')}>
           <Home color="#64748b" size={28} />
@@ -147,7 +153,6 @@ const ProfileScreen = ({ navigation }: Props) => {
         </TouchableOpacity>
       </View>
 
-      {/* Avatar Selection Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -245,9 +250,12 @@ const styles = StyleSheet.create({
     color: '#1e293b',
     marginBottom: 4,
   },
-  profileLocation: {
+  profileBio: {
     fontSize: 14,
-    color: '#64748b',
+    color: '#1e293b',
+    textAlign: 'center',
+    paddingHorizontal: 32,
+    lineHeight: 20,
   },
   statsCard: {
     flexDirection: 'row',

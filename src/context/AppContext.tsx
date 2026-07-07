@@ -1,4 +1,5 @@
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import { db } from '../lib/db';
 
 export type Comment = {
   id: string;
@@ -10,110 +11,204 @@ export type Comment = {
   isLiked: boolean;
   replies: Comment[];
   imageUri?: string;
+  author_id?: string;
+  avatar_url?: string;
 };
 
 export type Story = {
   id: string;
   title: string;
   author: string;
-  location: string;
   text: string;
   imageUrl?: string;
   isLiked: boolean;
   isBookmarked: boolean;
   likeCount: number;
   commentCount: number;
+  avatar_url?: string;
+};
+
+type UserProfile = {
+  id: string;
+  full_name: string;
+  avatar_url?: string;
+  bio?: string;
 };
 
 type AppContextType = {
+  user: User | null;
+  userProfile: UserProfile | null;
+  isLoading: boolean;
   stories: Story[];
+  isLoadingStories: boolean;
   comments: Comment[];
-  toggleLikeStory: (id: string) => void;
-  toggleBookmarkStory: (id: string) => void;
-  addComment: (storyId: string, text: string, replyToId?: string, imageUri?: string) => void;
-  toggleLikeComment: (commentId: string) => void;
+  fetchStories: () => Promise<void>;
+  fetchComments: (storyId: string) => Promise<void>;
+  toggleLikeStory: (id: string) => Promise<void>;
+  toggleBookmarkStory: (id: string) => Promise<void>;
+  addComment: (storyId: string, text: string, replyToId?: string, imageUri?: string) => Promise<void>;
+  addStory: (title: string, text: string, imageUrl?: string) => Promise<void>;
+  toggleLikeComment: (commentId: string) => Promise<void>;
+  updateUserAvatar: (uri: string) => Promise<void>;
+  updateProfileDetails: (name: string, bio: string) => Promise<void>;
 };
-
-const defaultStories: Story[] = [
-  {
-    id: 's1',
-    title: 'Brave Little Lily: A Story of Courage',
-    author: 'Aanya R.',
-    location: 'New Delhi, India',
-    text: 'Once upon a time, in a quiet little village, there lived a brave and curious little girl named Lily. Lily had big, bright eyes and a smile that could light up the darkest of rooms. She loved playing in the meadows, picking wildflowers, and chasing butterflies.\n\nBut one summer, the village stream began to dry up. The animals were thirsty. The flowers drooped.',
-    isLiked: false,
-    isBookmarked: false,
-    likeCount: 24,
-    commentCount: 4,
-  },
-  {
-    id: 's2',
-    title: 'Stella The Star',
-    author: 'Aanya R.',
-    location: 'Lisbon, Portugal',
-    text: 'Once upon a time, in a tiny, faraway galaxy, there lived a little star named Stella. Stella was a bright and shining star during the day, but at night, when the sky was dark, she would twinkle with a secret sadness. You see, Stella was facing a big problem. She lived',
-    isLiked: false,
-    isBookmarked: false,
-    likeCount: 12,
-    commentCount: 2,
-  }
-];
-
-const defaultComments: Comment[] = [
-  {
-    id: 'c1',
-    storyId: 's1',
-    author: 'Maya S.',
-    time: '2h',
-    text: 'This made my morning 🌸 such a sweet story!',
-    likes: 12,
-    isLiked: false,
-    replies: []
-  },
-  {
-    id: 'c2',
-    storyId: 's1',
-    author: 'Rohan K.',
-    time: '5h',
-    text: 'Read this to my little sister, she loved it ❤️',
-    likes: 4,
-    isLiked: true,
-    replies: []
-  },
-  {
-    id: 'c3',
-    storyId: 's1',
-    author: 'Aanya R.',
-    time: '1d',
-    text: 'More stories like this please 🙏',
-    likes: 28,
-    isLiked: false,
-    replies: []
-  }
-];
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const [stories, setStories] = useState<Story[]>(defaultStories);
-  const [comments, setComments] = useState<Comment[]>(defaultComments);
+  const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [stories, setStories] = useState<Story[]>([]);
+  const [isLoadingStories, setIsLoadingStories] = useState(true);
+  const [comments, setComments] = useState<Comment[]>([]);
 
-  const toggleLikeStory = (id: string) => {
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await db.auth.getUser();
+      setUser(user);
+      if (user) {
+        const { data } = await db.from('profiles').select('*').eq('id', user.id).single();
+        if (data) setUserProfile(data);
+      }
+      setIsLoading(false);
+    };
+    fetchUser();
+
+    const { data: { subscription } } = db.auth.onAuthStateChange(async (_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        const { data } = await db.from('profiles').select('*').eq('id', session.user.id).single();
+        if (data) setUserProfile(data);
+        fetchStories();
+      } else {
+        setUserProfile(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const fetchStories = async () => {
+    setIsLoadingStories(true);
+    const { data: storiesData, error } = await db.from('stories_with_stats').select('*').order('created_at', { ascending: false });
+    if (error) {
+      console.error(error);
+      setIsLoadingStories(false);
+      return;
+    }
+    
+    let likedSet = new Set<string>();
+    let bookmarkedSet = new Set<string>();
+
+    if (user) {
+      const [{ data: likes }, { data: bookmarks }] = await Promise.all([
+        db.from('story_likes').select('story_id').eq('user_id', user.id),
+        db.from('story_bookmarks').select('story_id').eq('user_id', user.id)
+      ]);
+      if (likes) likes.forEach(l => likedSet.add(l.story_id));
+      if (bookmarks) bookmarks.forEach(b => bookmarkedSet.add(b.story_id));
+    }
+
+    const formattedStories: Story[] = storiesData.map(s => ({
+      id: s.id,
+      title: s.title,
+      author: s.author_name || 'Unknown',
+      text: s.text,
+      imageUrl: s.image_url,
+      isLiked: likedSet.has(s.id),
+      isBookmarked: bookmarkedSet.has(s.id),
+      likeCount: s.like_count || 0,
+      commentCount: s.comment_count || 0,
+      avatar_url: s.author_avatar,
+    }));
+    setStories(formattedStories);
+    setIsLoadingStories(false);
+  };
+
+  const addStory = async (title: string, text: string, imageUrl?: string) => {
+    if (!user) return;
+    const { error } = await db.from('stories').insert({ title, text, image_url: imageUrl, author_id: user.id });
+    if (!error) {
+      await fetchStories();
+    }
+  };
+
+  const fetchComments = async (storyId: string) => {
+    const { data, error } = await db.from('comments').select('*, profiles!comments_author_id_fkey(full_name, avatar_url)').eq('story_id', storyId);
+    if (!error && data) {
+      const formattedComments: Comment[] = data.map(c => ({
+        id: c.id,
+        storyId: c.story_id,
+        author: c.profiles?.full_name || 'Unknown',
+        time: new Date(c.created_at).toLocaleDateString(),
+        text: c.text,
+        likes: 0,
+        isLiked: false,
+        replies: [],
+        imageUri: c.image_url,
+        author_id: c.author_id,
+        avatar_url: c.profiles?.avatar_url,
+      }));
+      setComments(formattedComments);
+    }
+  };
+
+  const updateUserAvatar = async (avatarUrl: string) => {
+    if (!user) return;
+    const { error } = await db.from('profiles').update({ avatar_url: avatarUrl }).eq('id', user.id);
+    if (!error) {
+      setUserProfile(prev => prev ? { ...prev, avatar_url: avatarUrl } : null);
+      await fetchStories();
+      // comments are fetched per-story, so no global refresh needed here
+    }
+  };
+
+  const updateProfileDetails = async (name: string, bio: string) => {
+    if (!user) return;
+    const { error } = await db.from('profiles').update({ full_name: name, bio }).eq('id', user.id);
+    if (!error) {
+      setUserProfile(prev => prev ? { ...prev, full_name: name, bio } : null);
+      await fetchStories();
+    }
+  };
+
+  const toggleLikeStory = async (id: string) => {
+    if (!user) return;
+    const story = stories.find(s => s.id === id);
+    if (!story) return;
+
     setStories(prev => prev.map(s => {
       if (s.id === id) {
         return { ...s, isLiked: !s.isLiked, likeCount: s.isLiked ? s.likeCount - 1 : s.likeCount + 1 };
       }
       return s;
     }));
+
+    if (story.isLiked) {
+      await db.from('story_likes').delete().match({ story_id: id, user_id: user.id });
+    } else {
+      await db.from('story_likes').insert({ story_id: id, user_id: user.id });
+    }
   };
 
-  const toggleBookmarkStory = (id: string) => {
+  const toggleBookmarkStory = async (id: string) => {
+    if (!user) return;
+    const story = stories.find(s => s.id === id);
+    if (!story) return;
+
     setStories(prev => prev.map(s => {
       if (s.id === id) {
         return { ...s, isBookmarked: !s.isBookmarked };
       }
       return s;
     }));
+
+    if (story.isBookmarked) {
+      await db.from('story_bookmarks').delete().match({ story_id: id, user_id: user.id });
+    } else {
+      await db.from('story_bookmarks').insert({ story_id: id, user_id: user.id });
+    }
   };
 
   const toggleLikeCommentRecursive = (commentsList: Comment[], commentId: string): Comment[] => {
@@ -128,8 +223,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const toggleLikeComment = (commentId: string) => {
+  const toggleLikeComment = async (commentId: string) => {
+    if (!user) return;
     setComments(prev => toggleLikeCommentRecursive(prev, commentId));
+    // Implementation for DB like/unlike can be added similarly
   };
 
   const addCommentRecursive = (commentsList: Comment[], replyToId: string, newComment: Comment): Comment[] => {
@@ -144,36 +241,63 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const addComment = (storyId: string, text: string, replyToId?: string, imageUri?: string) => {
-    const newComment: Comment = {
-      id: Date.now().toString(),
-      storyId,
-      author: 'You',
-      time: 'now',
+  const addComment = async (storyId: string, text: string, replyToId?: string, imageUri?: string) => {
+    if (!user) return;
+    
+    const { data, error } = await db.from('comments').insert({
+      story_id: storyId,
+      author_id: user.id,
+      parent_id: replyToId || null,
       text,
-      likes: 0,
-      isLiked: false,
-      replies: [],
-      imageUri
-    };
+      image_url: imageUri
+    }).select().single();
 
-    if (replyToId) {
-      setComments(prev => addCommentRecursive(prev, replyToId, newComment));
-    } else {
-      setComments(prev => [newComment, ...prev]);
-    }
+    if (!error && data) {
+      const newComment: Comment = {
+        id: data.id,
+        storyId,
+        author: 'You',
+        time: 'now',
+        text,
+        likes: 0,
+        isLiked: false,
+        replies: [],
+        imageUri
+      };
 
-    // Increment story comment count
-    setStories(prev => prev.map(s => {
-      if (s.id === storyId) {
-        return { ...s, commentCount: s.commentCount + 1 };
+      if (replyToId) {
+        setComments(prev => addCommentRecursive(prev, replyToId, newComment));
+      } else {
+        setComments(prev => [newComment, ...prev]);
       }
-      return s;
-    }));
+
+      setStories(prev => prev.map(s => {
+        if (s.id === storyId) {
+          return { ...s, commentCount: s.commentCount + 1 };
+        }
+        return s;
+      }));
+    }
   };
 
   return (
-    <AppContext.Provider value={{ stories, comments, toggleLikeStory, toggleBookmarkStory, addComment, toggleLikeComment }}>
+    <AppContext.Provider value={{ 
+      user, 
+      userProfile,
+      isLoading,
+      stories, 
+      isLoadingStories,
+      comments, 
+      fetchStories, 
+      fetchComments, 
+      toggleLikeStory, 
+      toggleBookmarkStory, 
+      addComment, 
+      addStory,
+      toggleLikeComment, 
+      updateUserAvatar,
+      updateProfileDetails
+    }}>
       {children}
     </AppContext.Provider>
   );

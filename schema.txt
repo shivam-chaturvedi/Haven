@@ -1,0 +1,45 @@
+# Supabase Schema Definition
+
+1. `profiles`
+   - `id` (uuid, primary key, references auth.users)
+   - `full_name` (text, nullable)
+   - `avatar_url` (text, nullable)
+   - `location` (text, nullable)
+   - `role` (text, default 'user')
+   - `created_at` (timestamptz, default now())
+
+2. `stories`
+   - `id` (uuid, primary key, default uuid_generate_v4())
+   - `author_id` (uuid, references profiles.id)
+   - `title` (text)
+   - `text` (text)
+   - `image_url` (text, nullable)
+   - `location` (text, nullable)
+   - `created_at` (timestamptz, default now())
+
+3. `story_likes`
+   - `story_id` (uuid, references stories.id)
+   - `user_id` (uuid, references profiles.id)
+   - `created_at` (timestamptz, default now())
+   - Primary key: `(story_id, user_id)`
+
+4. `story_bookmarks`
+   - `story_id` (uuid, references stories.id)
+   - `user_id` (uuid, references profiles.id)
+   - `created_at` (timestamptz, default now())
+   - Primary key: `(story_id, user_id)`
+
+5. `comments`
+   - `id` (uuid, primary key, default uuid_generate_v4())
+   - `story_id` (uuid, references stories.id)
+   - `author_id` (uuid, references profiles.id)
+   - `parent_id` (uuid, nullable, references comments.id)
+   - `text` (text)
+   - `image_url` (text, nullable)
+   - `created_at` (timestamptz, default now())
+
+6. `comment_likes`
+   - `comment_id` (uuid, references comments.id)
+   - `user_id` (uuid, references profiles.id)
+   - `created_at` (timestamptz, default now())
+   - Primary key: `(comment_id, user_id)`

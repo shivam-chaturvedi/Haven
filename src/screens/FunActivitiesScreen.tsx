@@ -1,15 +1,50 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Home, Share, PartyPopper, User, Mouse, Dices, Leaf, Microscope, BookOpen } from 'lucide-react-native';
+import { ArrowLeft, Home, Share, PartyPopper, User, Mouse, Dices, Leaf, Microscope, BookOpen, Zap } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigation';
+import { db } from '../lib/db';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'FunActivities'>;
 };
 
+type Activity = {
+  id: string;
+  title: string;
+  description: string;
+  link: string;
+  icon_name: string;
+  icon_color: string;
+  icon_bg_color: string;
+  section: string;
+};
+
+const IconMap: Record<string, any> = {
+  Mouse, Dices, Leaf, Microscope, BookOpen, Zap
+};
+
 const FunActivitiesScreen = ({ navigation }: Props) => {
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchActivities = async () => {
+      const { data, error } = await db.from('fun_activities').select('*').order('created_at', { ascending: true });
+      if (!error && data) {
+        setActivities(data);
+      } else {
+        console.error('Error fetching activities:', error);
+      }
+      setLoading(false);
+    };
+
+    fetchActivities();
+  }, []);
+
+  const sections = Array.from(new Set(activities.map(a => a.section)));
+
   return (
     <SafeAreaView style={styles.safeArea}>
       {/* Header */}
@@ -21,89 +56,47 @@ const FunActivitiesScreen = ({ navigation }: Props) => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Trending Today */}
-        <Text style={styles.sectionTitle}>Trending Today</Text>
-        
-        <TouchableOpacity 
-          style={styles.activityItem} 
-          onPress={() => Linking.openURL('https://www.abcmouse.com/')}
-        >
-          <View style={[styles.iconContainer, { backgroundColor: '#fef3c7' }]}>
-            <Mouse color="#d97706" size={24} />
-          </View>
-          <View style={styles.activityTextContainer}>
-            <Text style={styles.activityTitle}>ABCmouse</Text>
-            <Text style={styles.activityDesc}>
-              Interactive games, books, and activities covering subjects like math, science, and art.
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.activityItem} 
-          onPress={() => Linking.openURL('https://www.prodigygame.com/')}
-        >
-          <View style={[styles.iconContainer, { backgroundColor: '#fee2e2' }]}>
-            <Dices color="#dc2626" size={24} />
-          </View>
-          <View style={styles.activityTextContainer}>
-            <Text style={styles.activityTitle}>Prodigy</Text>
-            <Text style={styles.activityDesc}>
-              A math-based RPG game where kids can practice math skills by solving problems and defeating in-game creatures.
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Top games this month */}
-        <Text style={styles.sectionTitle}>Top games this month</Text>
-
-        <TouchableOpacity 
-          style={styles.activityItem}
-          onPress={() => Linking.openURL('https://geoknights.com/')} // Replace with actual URL if known
-        >
-          <View style={[styles.iconContainer, { backgroundColor: '#dcfce7' }]}>
-            <Leaf color="#16a34a" size={24} />
-          </View>
-          <View style={styles.activityTextContainer}>
-            <Text style={styles.activityTitle}>Geoknights</Text>
-            <Text style={styles.activityDesc}>
-              Nature, conservation, and the environment through interactive games. Become eco-warriors and protect our world's natural treasures!
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.activityItem}
-          onPress={() => Linking.openURL('https://sciencesleuths.org/')} // Replace with actual URL if known
-        >
-          <View style={[styles.iconContainer, { backgroundColor: '#e0f2fe' }]}>
-            <Microscope color="#0284c7" size={24} />
-          </View>
-          <View style={styles.activityTextContainer}>
-            <Text style={styles.activityTitle}>Science Sleuths</Text>
-            <Text style={styles.activityDesc}>
-              Become a detective of the natural world with Science Sleuths.
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Continue Playing */}
-        <Text style={styles.sectionTitle}>Continue Playing</Text>
-
-        <TouchableOpacity 
-          style={styles.activityItem}
-          onPress={() => Linking.openURL('https://storycraft.com/')} // Replace with actual URL if known
-        >
-          <View style={[styles.iconContainer, { backgroundColor: '#ede9fe' }]}>
-            <BookOpen color="#7c3aed" size={24} />
-          </View>
-          <View style={styles.activityTextContainer}>
-            <Text style={styles.activityTitle}>StoryCraft Kingdom</Text>
-            <Text style={styles.activityDesc}>
-              Create your own stories, characters, and worlds, all while developing writing skills and having a blast. The ultimate storytelling adventure!
-            </Text>
-          </View>
-        </TouchableOpacity>
+        {loading ? (
+          [1, 2, 3].map(key => (
+            <View key={key} style={{ marginTop: 20 }}>
+              <View style={{ width: 120, height: 20, backgroundColor: '#e2e8f0', borderRadius: 10, marginBottom: 16 }} />
+              {[1, 2].map(itemKey => (
+                <View key={itemKey} style={styles.activityItem}>
+                  <View style={[styles.iconContainer, { backgroundColor: '#e2e8f0' }]} />
+                  <View style={styles.activityTextContainer}>
+                    <View style={{ width: 100, height: 16, backgroundColor: '#e2e8f0', borderRadius: 8, marginBottom: 8 }} />
+                    <View style={{ width: '100%', height: 12, backgroundColor: '#e2e8f0', borderRadius: 6, marginBottom: 6 }} />
+                    <View style={{ width: '80%', height: 12, backgroundColor: '#e2e8f0', borderRadius: 6 }} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          ))
+        ) : (
+          sections.map(section => (
+            <View key={section}>
+              <Text style={styles.sectionTitle}>{section}</Text>
+              {activities.filter(a => a.section === section).map(activity => {
+                const IconComponent = IconMap[activity.icon_name] || Zap;
+                return (
+                  <TouchableOpacity 
+                    key={activity.id}
+                    style={styles.activityItem} 
+                    onPress={() => Linking.openURL(activity.link)}
+                  >
+                    <View style={[styles.iconContainer, { backgroundColor: activity.icon_bg_color || '#f1f5f9' }]}>
+                      <IconComponent color={activity.icon_color || '#64748b'} size={24} />
+                    </View>
+                    <View style={styles.activityTextContainer}>
+                      <Text style={styles.activityTitle}>{activity.title}</Text>
+                      <Text style={styles.activityDesc}>{activity.description}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ))
+        )}
         
         {/* Extra padding at bottom for scroll space */}
         <View style={{ height: 20 }} />

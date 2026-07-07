@@ -5,13 +5,14 @@ import { Search, Bell, Home, Share, PartyPopper, User } from 'lucide-react-nativ
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigation';
 import { useAppContext } from '../context/AppContext';
+import { getAvatarById } from '../constants/avatars';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Home'>;
 };
 
 const HomeScreen = ({ navigation }: Props) => {
-  const { stories } = useAppContext();
+  const { stories, isLoadingStories } = useAppContext();
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -30,32 +31,52 @@ const HomeScreen = ({ navigation }: Props) => {
 
       {/* Feed */}
       <ScrollView style={styles.feed} showsVerticalScrollIndicator={false}>
-        {stories.map(post => (
-          <TouchableOpacity 
-            key={post.id} 
-            style={styles.post} 
-            onPress={() => navigation.navigate('StoryDetail', { storyId: post.id })}
-          >
-            <View style={styles.postHeader}>
-              <View style={styles.avatarPlaceholder}>
-                {/* Avatar Image Placeholder */}
+        {isLoadingStories ? (
+          [1, 2, 3].map((key) => (
+            <View key={key} style={styles.post}>
+              <View style={styles.postHeader}>
+                <View style={[styles.avatarPlaceholder, { backgroundColor: '#e2e8f0' }]} />
+                <View style={styles.postMeta}>
+                  <View style={{ width: 120, height: 16, backgroundColor: '#e2e8f0', borderRadius: 8, marginBottom: 6 }} />
+                  <View style={{ width: 80, height: 12, backgroundColor: '#e2e8f0', borderRadius: 6 }} />
+                </View>
               </View>
-              <View style={styles.postMeta}>
-                <Text style={styles.postTitle}>{post.title}</Text>
-                <Text style={styles.postLocation}>{post.location}</Text>
-              </View>
+              <View style={{ width: '100%', height: 14, backgroundColor: '#e2e8f0', borderRadius: 7, marginBottom: 8 }} />
+              <View style={{ width: '80%', height: 14, backgroundColor: '#e2e8f0', borderRadius: 7, marginBottom: 8 }} />
+              <View style={{ width: '60%', height: 14, backgroundColor: '#e2e8f0', borderRadius: 7 }} />
             </View>
-            <Text style={styles.postText}>
-              {post.text.length > 200 ? post.text.substring(0, 200) + '...' : post.text}
-            </Text>
-            {/* If you wanted an image rendering based on post.id, you could add it here */}
-            {post.id === 's1' && (
-              <View style={styles.postImagePlaceholder}>
-                <Text style={styles.placeholderText}>Image Placeholder: Girl with face paint</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
+          ))
+        ) : (
+          stories.map(post => {
+            const authorAvatar = getAvatarById(post.avatar_url);
+            return (
+              <TouchableOpacity 
+                key={post.id} 
+                style={styles.post} 
+                onPress={() => navigation.navigate('StoryDetail', { storyId: post.id })}
+              >
+                <View style={styles.postHeader}>
+                  <View style={[styles.avatarPlaceholder, authorAvatar ? { backgroundColor: authorAvatar.bgColor, justifyContent: 'center', alignItems: 'center' } : {}]}>
+                    {authorAvatar && <authorAvatar.icon color={authorAvatar.color} size={24} />}
+                  </View>
+                  <View style={styles.postMeta}>
+                    <Text style={styles.postTitle}>{post.title}</Text>
+                    <Text style={styles.postLocation}>{post.author}</Text>
+                  </View>
+                </View>
+                <Text style={styles.postText}>
+                  {post.text.length > 200 ? post.text.substring(0, 200) + '...' : post.text}
+                </Text>
+                {/* If you wanted an image rendering based on post.id, you could add it here */}
+                {post.id === 's1' && (
+                  <View style={styles.postImagePlaceholder}>
+                    <Text style={styles.placeholderText}>Image Placeholder: Girl with face paint</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })
+        )}
       </ScrollView>
 
       {/* Bottom Navigation Bar */}
