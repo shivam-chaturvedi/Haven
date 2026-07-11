@@ -1,0 +1,435 @@
+# Haven — Complete App Analysis
+
+## What Haven Is (In Plain Language)
+
+**Haven** is a mobile community app where people—especially younger users—can share personal stories, ask for support, and connect with others in a safer, more controlled space than a typical social network.
+
+Think of it as a **supportive storytelling community**, not a photo-first social feed. People write about what they’re going through, read others’ experiences, react with likes and comments, and save stories that matter to them. They can post under their chosen avatar and name, or stay anonymous when they don’t want to be identified.
+
+The app also includes a **Fun Activities** section with curated educational games and learning links, so it isn’t only about heavy topics—it also offers lighter, constructive things to do.
+
+The overall feeling is: **“You’re not alone. Share safely. Get support. Explore at your own pace.”**
+
+---
+
+## Who It’s For
+
+Haven appears designed for:
+
+- **Teens and young adults** who want a place to talk about personal struggles, healing, or life experiences
+- People who value **privacy and control** (anonymous posting, sensitive content warnings, comment toggles)
+- Users who want **community support** through stories, not just likes on photos
+- Families or educators looking for **safe, curated learning activities** alongside the social side
+
+The tone across onboarding, terms, and content suggests a focus on **emotional safety, empathy, and guided sharing** rather than viral content.
+
+---
+
+## The Big Picture — How the App Works
+
+### First-time experience
+1. A new user sees a welcome screen explaining Haven.
+2. They sign up with name, email, and password.
+3. A short 3-step tutorial explains how to post, share at their own pace, and get community help.
+4. They land on the **Home feed**—the main storytelling stream.
+
+### Returning user
+1. They log in (the app remembers login status so they don’t keep seeing the login screen).
+2. They go straight to Home and see stories from the community.
+
+### Day-to-day use
+- **Read** stories on Home
+- **Open** a story for the full text, images, or video
+- **Like, comment, bookmark, or share** stories
+- **Write** their own story with rich text, photos, or video
+- **Manage** their profile, saved stories, and notifications
+- **Search** for topics or browse trending words
+- **Open Fun Activities** for educational games and links
+
+---
+
+## Core Features (Detailed)
+
+### 1. Account & Onboarding
+
+| Feature | What it does |
+|--------|----------------|
+| Sign up | Create account with name, email, password |
+| Log in | Email/password authentication |
+| Forgot password | Reset password via email link |
+| Welcome screen | First-time users see intro; returning users go to login |
+| 3-step tutorial | Explains posting, sharing, and community support after signup |
+| Stay logged in | App remembers login so users return faster |
+| Log out | Sign out from profile |
+| Delete account | Permanently remove account and associated data |
+
+---
+
+### 2. Home Feed (Main Story Stream)
+
+The heart of Haven.
+
+- Shows community stories, **newest first**
+- Each card shows: title, author (or “Anonymous User”), optional location, text preview, and media
+- **Sensitive stories** are blurred until the user taps to reveal
+- **Scheduled stories** stay hidden until their publish time
+- Empty state when no stories exist yet
+- Header with **search** and **notifications** (with unread badge)
+- Bottom navigation: **Home, New Post, Fun Activities, Profile**
+
+---
+
+### 3. Creating & Managing Stories
+
+**Creating a post**
+- Rich text editor (bold, formatting, paragraphs)
+- Add **photos** or **videos** (uploaded to cloud storage)
+- Optional **tags** in the UI (used for title hints; full tag persistence is limited)
+- **Post anonymously** — shows as “Anonymous User” with a ghost avatar
+- **Allow / disable comments** per story
+- **Mark as sensitive** — blurred in feed until revealed
+- **Schedule for later** — story publishes at a chosen date/time
+
+**After publishing**
+- Story appears in the feed (when not scheduled)
+- Author gets an in-app “published” notification
+- Others can like, comment, bookmark, and read it
+
+**Managing own stories**
+- View all stories on profile (last 2 shown + “See all” for full list)
+- **Edit** title, text, privacy settings, schedule
+- **Delete** with confirmation; related likes, comments, bookmarks, and reads are cleaned up
+- **Reader count** — author sees how many unique people opened the story (author’s own views don’t count)
+
+---
+
+### 4. Reading & Engaging With Stories
+
+**Story detail screen**
+- Full story text (HTML rendered)
+- Image carousel or video player with play/pause, mute, progress
+- Like and bookmark
+- Share via device share sheet
+- Open comments
+- Author-only: edit, delete, see reader count
+
+**Comments**
+- Bottom-sheet style comment panel
+- Top-level comments and **replies** (threaded)
+- Add text; image attachment UI exists (full cloud upload for comment images is not fully wired)
+- Comment likes work in the UI but are **not saved to the database yet**
+- If comments are disabled on a story, the comment UI respects that
+
+**Likes & bookmarks**
+- Optimistic updates (UI changes immediately)
+- Author gets in-app notifications for likes and bookmarks (not for self-actions)
+
+**Reader tracking**
+- Opening a story records one read per user per story
+- Author viewing their own story does **not** increase the count
+- Re-opening the same story does **not** count again
+
+---
+
+### 5. Profile & Identity
+
+- **Avatar** — pick from preset icons (cat, dog, bird, etc.), not required to use a real photo
+- **Display name** and **bio**
+- **Stats**: total stories, unique readers across stories, total likes received
+- **My Stories** — recent 2 on profile; full list on separate screen
+- **Saved stories** — bookmarked posts
+- **Liked stories** — posts the user liked
+- **Edit profile** — name, bio, avatar
+- **Settings** — account, privacy, help, terms
+
+---
+
+### 6. Notifications
+
+In-app notification center (no push notifications yet).
+
+**Types**
+- Someone liked your story
+- Someone commented on your story
+- Someone replied to your comment
+- Someone saved your story
+- Your story was published
+- Your story was deleted
+
+**Behavior**
+- Grouped as “Today” and “Earlier”
+- Unread count on the bell icon (shows “9+” when over 9)
+- Opening notifications marks them as read
+- Tapping can navigate to the related story
+
+---
+
+### 7. Search & Discovery
+
+- Search by story title, author name, or story text
+- Debounced search (waits briefly while typing)
+- **Trending topics** — popular words from recent stories as tappable chips
+- Tap a result to open the full story
+
+---
+
+### 8. Fun Activities
+
+Separate section from the story feed.
+
+- Curated list of educational games and learning sites
+- Grouped into sections (e.g. Trending Today, Top games, Continue Playing)
+- Each item: icon, title, short description, external link
+- Opens in the device browser
+- Pull to refresh; skeleton while loading
+
+Examples of linked activities: math games, science exploration, storytelling tools, early learning platforms.
+
+---
+
+### 9. Settings, Privacy & Security
+
+**Settings hub**
+- Edit profile
+- Privacy & security
+- Help center
+- Terms of service
+
+**Privacy & security screen**
+- Private account toggle (stored; **no follower system yet**, so not fully enforced)
+- Activity status toggle (stored; not fully enforced in UI)
+- Allow tagging toggle (tagging feature not built yet)
+- Strict content filter toggle (stored; not applied to feed filtering yet)
+- Change password (re-authenticate, then update)
+- Download account data as JSON (via share sheet)
+- Delete account
+
+**Help & legal**
+- Help center with FAQ-style layout (mostly static placeholders)
+- Full terms of service (age 13+, community rules, etc.)
+
+---
+
+### 10. Media & Content Safety
+
+- **Photos and videos** uploaded to cloud storage before publish
+- **Sensitive content gate** — blur + tap to reveal in feed and detail
+- **Anonymous mode** — hides real name and uses anonymous avatar
+- **Comment control** — author can turn comments off per story
+- **Scheduled publishing** — content goes live only at the chosen time
+
+---
+
+## Features Mentioned but Not Fully Built
+
+| Planned / referenced | Current state |
+|---------------------|---------------|
+| Chatbot for private sharing | Mentioned in onboarding; no chatbot screen or API |
+| Mood selector | Constants exist; not used in UI |
+| Suggested tags persistence | UI exists; not fully saved to database |
+| Comment image upload to cloud | Bucket exists; app uses local URIs only |
+| Comment likes in database | UI only; not persisted |
+| Private account enforcement | Setting saved; no followers/private feed logic |
+| Push notifications | Not implemented |
+| Real-time live updates | Not implemented; refresh on navigation/focus |
+| Location on profile | Database field exists; no edit UI |
+
+---
+
+## User Journeys (Step by Step)
+
+### Journey 1: New member shares a problem
+Welcome → Sign up → Tutorial (3 steps) → Home → Tap “New Post” → Write story → Optionally add photo → Choose anonymous or named → Post → Story appears in feed → Others comment and like → Author sees notifications and reader count on profile.
+
+### Journey 2: Supporting someone else
+Home → Read story → Like or bookmark → Open comments → Reply → Author gets notified.
+
+### Journey 3: Managing privacy
+Profile → Settings → Privacy & Security → Toggle options → Change password or export data.
+
+### Journey 4: Finding content
+Home → Search → Type keyword or tap trending topic → Open story from results.
+
+### Journey 5: Learning break
+Bottom nav → Fun Activities → Pick activity → Opens in browser.
+
+---
+
+## Technical Stack
+
+### Mobile app (frontend)
+
+| Layer | Technology |
+|-------|------------|
+| Framework | React Native 0.86 |
+| Language | TypeScript 5.8 |
+| UI library | React 19 |
+| Navigation | React Navigation 7 (native stack) |
+| Icons | Lucide React Native |
+| Safe areas | react-native-safe-area-context |
+| State | React Context (global app state) |
+| Local persistence | AsyncStorage (auth session + login cache) |
+
+### Content & media
+
+| Capability | Technology |
+|------------|------------|
+| Rich text editing | TenTap Editor (HTML output) |
+| Photo/video picker | react-native-image-picker |
+| Video playback | react-native-video |
+| HTML rendering | Custom lightweight HTML parser |
+| Date/time scheduling | react-native-date-picker |
+| Web content | react-native-webview (editor dependency) |
+
+### Backend & infrastructure
+
+| Service | Role |
+|---------|------|
+| **Supabase** | Primary backend |
+| Supabase Auth | Email/password login, sessions, password reset |
+| Supabase PostgreSQL | All app data (stories, profiles, likes, etc.) |
+| Supabase Storage | Public buckets for post images and videos |
+| Row Level Security (RLS) | Database rules: who can read/write what |
+| SQL views | Aggregated story stats (likes, comments, readers) |
+| Database triggers | Auto-create profile and settings on signup |
+| RPC functions | Account deletion cascade |
+
+### Configuration & tooling
+
+| Tool | Purpose |
+|------|---------|
+| react-native-dotenv | Environment variables (API URL, keys) |
+| react-native-url-polyfill | URL compatibility for Supabase |
+| Jest | Testing scaffold |
+| ESLint + Prettier | Code quality |
+| Node.js ≥ 22.11 | Runtime requirement |
+
+### Platforms
+- **Android** (Gradle build, native launcher icons)
+- **iOS** (Xcode project, app icons)
+
+### Not integrated
+- Analytics (Firebase, Mixpanel, etc.)
+- Crash reporting (Sentry, etc.)
+- Push notifications (FCM, APNs)
+- Payments or subscriptions
+- Third-party social login (Google, Apple, etc.)
+
+---
+
+## Data Model (Conceptual)
+
+**Users & profiles**
+- Each account has one profile: name, avatar choice, bio, optional location.
+
+**Stories**
+- Title, HTML body, optional media (JSON list of images/videos), anonymous flag, sensitive flag, comment allowance, optional schedule time, author link.
+
+**Engagement**
+- Story likes (one per user per story)
+- Story bookmarks (saves)
+- Story reads (unique viewers per story)
+- Comments with optional parent for replies
+- Comment likes (schema exists; app not fully using it)
+
+**Notifications**
+- Per-user inbox: type, message, related story/comment, read/unread, who triggered it.
+
+**User settings**
+- Privacy toggles stored per user.
+
+**Fun activities**
+- Standalone curated items: title, description, link, icon styling, section label.
+
+**Storage**
+- Post media in cloud storage; public URLs stored on stories.
+
+**Security model**
+- Stories and profiles are publicly readable.
+- Only the author can edit or delete their stories.
+- Likes, bookmarks, reads, and notifications are scoped to the right user.
+- Account deletion removes profile data and cascades to related content.
+
+---
+
+## Design & UX Patterns
+
+**Visual identity**
+- Light theme: white backgrounds, dark slate text, yellow primary buttons
+- Rounded cards, bold headings, soft gray borders
+- Circular Haven logo (hands/community imagery) on auth and home
+
+**Interaction patterns**
+- Sensitive content: tap to reveal
+- Comments: slide-up bottom sheet
+- Avatar: modal grid picker
+- Scheduled posts: purple “Scheduled” badge; tap opens edit
+- Optimistic like/bookmark updates
+- Custom bottom bar on main screens (not a system tab navigator)
+
+**Auth UX**
+- Cached login for faster return
+- Brief white screen while session restores
+- Logged-in users skip login stack
+
+---
+
+## Haven vs Typical Social Apps
+
+| Typical social app | Haven |
+|-------------------|--------|
+| Photo/video first | **Text and story first** |
+| Real names/photos common | **Avatars + anonymous option** |
+| Algorithmic feed | **Chronological feed** |
+| Public by default | **Sensitive blur, comment toggles, scheduling** |
+| Entertainment focus | **Support + storytelling + learning activities** |
+
+---
+
+## Strengths
+
+1. **Clear purpose** — safe storytelling and peer support, not generic social media.
+2. **Thoughtful safety controls** — anonymous posts, sensitive content, per-story comments, scheduling.
+3. **Solid backend** — Supabase with RLS, cascades, stats view, reader tracking.
+4. **Rich posting** — HTML editor, images, video, privacy options.
+5. **Complete account lifecycle** — signup, profile, settings, export data, delete account.
+6. **Engagement loop** — feed → detail → comments → notifications → profile stats.
+
+---
+
+## Gaps & Roadmap Opportunities
+
+1. **Chatbot** — promised in onboarding; highest product gap.
+2. **Privacy settings** — stored but not enforced (private account, strict filter).
+3. **Comment likes & comment images** — partially built.
+4. **Tags/moods** — UI/constants exist; need full persistence and discovery.
+5. **Push notifications** — in-app only today.
+6. **Real-time** — manual refresh; no live updates.
+7. **Follower/private feed** — needed if “private account” is real.
+8. **Help center** — expand interactive FAQs and support flow.
+
+---
+
+## One-Sentence Summary
+
+**Haven is a React Native + Supabase mobile community for young people to share personal stories safely—with anonymous posting, sensitive content controls, likes, comments, bookmarks, reader analytics, in-app notifications, search, profile management, and curated educational activities—in a supportive environment rather than a traditional social feed.**
+
+---
+
+## Layman’s Glossary
+
+| Term | Plain meaning |
+|------|----------------|
+| Story | A post someone writes—like a blog entry or diary share |
+| Anonymous | Others see “Anonymous User,” not your real name |
+| Sensitive content | Blurred until you choose to view it |
+| Bookmark / Save | Private list of stories you want to keep |
+| Reader count | How many different people opened your story (not you) |
+| Scheduled post | Written now, published automatically later |
+| Fun Activities | Links to educational games and learning sites |
+| Notification | In-app alert when someone interacts with your content |
+| Avatar | A fun icon representing you instead of a photo |
+
+---
+
+If you want this turned into a pitch deck, investor one-pager, or App Store description next, say which format you prefer.
