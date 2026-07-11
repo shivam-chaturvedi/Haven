@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Image } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigation';
+import AppLogo from '../components/AppLogo';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'OnboardingStep2'>;
@@ -14,11 +15,11 @@ const OnboardingStep2Screen = ({ navigation }: Props) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* Top Header Buttons */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={styles.headerText}>Back</Text>
           </TouchableOpacity>
+          <AppLogo size={40} />
           <TouchableOpacity onPress={() => navigation.navigate('Home')}>
             <Text style={styles.headerText}>Skip</Text>
           </TouchableOpacity>
@@ -70,6 +71,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingTop: 16,
   },
   headerText: {

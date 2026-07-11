@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigation';
 import { db } from '../lib/db';
+import AppLogo from '../components/AppLogo';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'SignUp'>;
@@ -34,7 +35,7 @@ const SignUpScreen = ({ navigation }: Props) => {
     }
 
     setLoading(true);
-    const { data, error } = await db.auth.signUp({
+    const { error } = await db.auth.signUp({
       email,
       password,
       options: {
@@ -64,12 +65,7 @@ const SignUpScreen = ({ navigation }: Props) => {
           
           {/* Logo Placeholder */}
           <View style={styles.logoContainer}>
-            <View style={styles.logoOuterCircle}>
-              <View style={styles.logoInnerCircle}>
-                <Text style={styles.logoText}>HAVEN</Text>
-                {/* Dove Icon placeholder */}
-              </View>
-            </View>
+            <AppLogo size={108} showShadow />
           </View>
 
           <Text style={styles.title}>SIGN UP</Text>
@@ -146,30 +142,6 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     marginBottom: 32,
-  },
-  logoOuterCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#0ea5e9',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 4,
-    borderColor: '#fde047',
-  },
-  logoInnerCircle: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: '#bae6fd',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoText: {
-    color: '#ec4899',
-    fontSize: 14,
-    fontWeight: '800',
-    marginBottom: 4,
   },
   title: {
     fontSize: 48,

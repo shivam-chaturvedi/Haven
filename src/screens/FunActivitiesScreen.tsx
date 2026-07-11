@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Home, Share, PartyPopper, User, Mouse, Dices, Leaf, Microscope, BookOpen, Zap } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -28,19 +28,24 @@ const IconMap: Record<string, any> = {
 const FunActivitiesScreen = ({ navigation }: Props) => {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchActivities = async () => {
+    const { data, error } = await db.from('fun_activities').select('*').order('created_at', { ascending: true });
+    if (!error && data) {
+      setActivities(data);
+    } else {
+      console.error('Error fetching activities:', error);
+      setActivities([]);
+    }
+    setLoading(false);
+    setRefreshing(false);
+  };
 
   useEffect(() => {
-    const fetchActivities = async () => {
-      const { data, error } = await db.from('fun_activities').select('*').order('created_at', { ascending: true });
-      if (!error && data) {
-        setActivities(data);
-      } else {
-        console.error('Error fetching activities:', error);
-      }
-      setLoading(false);
-    };
-
-    fetchActivities();
+    // Safety net: never show skeleton for more than 8 seconds
+    const guard = setTimeout(() => setLoading(false), 8000);
+    fetchActivities().finally(() => clearTimeout(guard));
   }, []);
 
   const sections = Array.from(new Set(activities.map(a => a.section)));
@@ -55,7 +60,14 @@ const FunActivitiesScreen = ({ navigation }: Props) => {
         <Text style={styles.headerTitle}>Fun Activities</Text>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => {
+          setRefreshing(true);
+          fetchActivities();
+        }} />}
+      >
         {loading ? (
           [1, 2, 3].map(key => (
             <View key={key} style={{ marginTop: 20 }}>
@@ -72,6 +84,11 @@ const FunActivitiesScreen = ({ navigation }: Props) => {
               ))}
             </View>
           ))
+        ) : activities.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyTitle}>No activities available right now</Text>
+            <Text style={styles.emptyText}>Once activities are added in Supabase, they will appear here automatically.</Text>
+          </View>
         ) : (
           sections.map(section => (
             <View key={section}>
@@ -82,7 +99,14 @@ const FunActivitiesScreen = ({ navigation }: Props) => {
                   <TouchableOpacity 
                     key={activity.id}
                     style={styles.activityItem} 
-                    onPress={() => Linking.openURL(activity.link)}
+                    onPress={async () => {
+                      const canOpen = await Linking.canOpenURL(activity.link);
+                      if (!canOpen) {
+                        Alert.alert('Invalid link', 'This activity link could not be opened.');
+                        return;
+                      }
+                      await Linking.openURL(activity.link);
+                    }}
                   >
                     <View style={[styles.iconContainer, { backgroundColor: activity.icon_bg_color || '#f1f5f9' }]}>
                       <IconComponent color={activity.icon_color || '#64748b'} size={24} />
@@ -177,6 +201,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748b',
     lineHeight: 20,
+  },
+  emptyWrap: {
+    paddingTop: 48,
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1e293b',
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#64748b',
+    textAlign: 'center',
+    paddingHorizontal: 24,
   },
   bottomNav: {
     flexDirection: 'row',

@@ -1,27 +1,81 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, FlatList, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Settings, Bookmark, Home, Share, PartyPopper, User, Heart, Pencil, LogOut, X, Trash2 } from 'lucide-react-native';
+import { Settings, Bookmark, Home, Share, PartyPopper, User, Heart, Pencil, LogOut, X, Trash2, Clock, Eye } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigation';
 import { useAppContext } from '../context/AppContext';
 import { DEFAULT_AVATARS, getAvatarById } from '../constants/avatars';
 import { db } from '../lib/db';
+import { stripHTML } from '../lib/htmlUtils';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 };
 
-const screenWidth = Dimensions.get('window').width;
-
 const ProfileScreen = ({ navigation }: Props) => {
-  const { userProfile, stories, updateUserAvatar } = useAppContext();
+  const { user, userProfile, stories, updateUserAvatar } = useAppContext();
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [allMyStories, setAllMyStories] = useState<Array<{
+    id: string;
+    title: string;
+    text: string;
+    scheduled_for: string | null;
+    is_anonymous: boolean;
+  }>>([]);
+  const [totalReaders, setTotalReaders] = useState(0);
+  const [storyReaderCounts, setStoryReaderCounts] = useState<Record<string, number>>({});
 
-  const handleSelectAvatar = async (avatar: any) => {
-    await updateUserAvatar(avatar.id);
-    setIsModalVisible(false);
-  };
+  const loadProfileData = useCallback(async () => {
+    if (!user?.id) return;
+
+    const { data: storiesData } = await db
+      .from('stories')
+      .select('id, title, text, scheduled_for, is_anonymous')
+      .eq('author_id', user.id)
+      .order('created_at', { ascending: false });
+
+    const storiesList = storiesData || [];
+    setAllMyStories(storiesList);
+
+    const storyIds = storiesList.map(story => story.id);
+    if (storyIds.length === 0) {
+      setTotalReaders(0);
+      setStoryReaderCounts({});
+      return;
+    }
+
+    const { data: reads, error } = await db
+      .from('story_reads')
+      .select('story_id, user_id')
+      .in('story_id', storyIds);
+
+    if (error || !reads) {
+      console.warn('[ProfileScreen] Failed to load reader stats:', error);
+      setTotalReaders(0);
+      setStoryReaderCounts({});
+      return;
+    }
+
+    setTotalReaders(new Set(reads.map(read => read.user_id)).size);
+
+    const counts: Record<string, number> = {};
+    reads.forEach(read => {
+      counts[read.story_id] = (counts[read.story_id] || 0) + 1;
+    });
+    setStoryReaderCounts(counts);
+  }, [user?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProfileData();
+    }, [loadProfileData])
+  );
+
+  const selectedAvatar = getAvatarById(userProfile?.avatar_url);
+  // Still use context stories for stats (like counts are in stories_with_stats view)
+  const myPublishedStories = stories.filter(s => s.author_id === user?.id);
 
   const handleLogout = () => {
     Alert.alert('Log out', 'Are you sure you want to log out?', [
@@ -44,8 +98,10 @@ const ProfileScreen = ({ navigation }: Props) => {
     ]);
   };
 
-  const myStories = stories.filter(s => s.author === userProfile?.full_name);
-  const selectedAvatar = getAvatarById(userProfile?.avatar_url);
+  const handleSelectAvatar = async (avatar: any) => {
+    await updateUserAvatar(avatar.id);
+    setIsModalVisible(false);
+  };
 
   // No local loading state needed, handled by RootNavigator in AppNavigation
 
@@ -81,15 +137,15 @@ const ProfileScreen = ({ navigation }: Props) => {
 
         <View style={styles.statsCard}>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{myStories.length}</Text>
+            <Text style={styles.statNumber}>{allMyStories.length}</Text>
             <Text style={styles.statLabel}>Stories</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>-</Text>
+            <Text style={styles.statNumber}>{totalReaders}</Text>
             <Text style={styles.statLabel}>Readers</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{myStories.reduce((acc, curr) => acc + curr.likeCount, 0)}</Text>
+            <Text style={styles.statNumber}>{myPublishedStories.reduce((acc, curr) => acc + curr.likeCount, 0)}</Text>
             <Text style={styles.statLabel}>Likes</Text>
           </View>
         </View>
@@ -98,19 +154,78 @@ const ProfileScreen = ({ navigation }: Props) => {
           <Text style={styles.writeButtonText}>+ Write a new story</Text>
         </TouchableOpacity>
 
-        {myStories.length > 0 && <Text style={styles.sectionTitle}>My Stories</Text>}
+        {allMyStories.length > 0 && (
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>My Stories</Text>
+            {allMyStories.length > 2 && (
+              <TouchableOpacity
+                onPress={() =>
+                  navigation.navigate('MyStories', {
+                    stories: allMyStories,
+                    avatarId: userProfile?.avatar_url,
+                    readerCounts: storyReaderCounts,
+                  })
+                }
+              >
+                <Text style={styles.seeAllText}>See all ({allMyStories.length})</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
-        {myStories.map(story => (
-          <TouchableOpacity key={story.id} style={styles.storyCard} onPress={() => navigation.navigate('StoryDetail', { storyId: story.id })}>
-            <View style={[styles.storyAvatar, { backgroundColor: selectedAvatar ? selectedAvatar.bgColor : '#fca5a5', justifyContent: 'center', alignItems: 'center' }]}>
-              {selectedAvatar && <selectedAvatar.icon color={selectedAvatar.color} size={24} />}
-            </View>
-            <View style={styles.storyTextContainer}>
-              <Text style={styles.storyTitle}>{story.title}</Text>
-              <Text style={styles.storyDesc} numberOfLines={2}>{story.text}</Text>
-            </View>
+        {allMyStories.slice(0, 2).map(story => {
+          const isScheduled = story.scheduled_for && new Date(story.scheduled_for) > new Date();
+          const readerCount = storyReaderCounts[story.id] || 0;
+          return (
+            <TouchableOpacity
+              key={story.id}
+              style={styles.storyCard}
+              onPress={() => isScheduled
+                ? navigation.navigate('EditPost', { storyId: story.id })
+                : navigation.navigate('StoryDetail', { storyId: story.id })
+              }
+            >
+              <View style={[styles.storyAvatar, { backgroundColor: selectedAvatar ? selectedAvatar.bgColor : '#fca5a5', justifyContent: 'center', alignItems: 'center' }]}>
+                {selectedAvatar && <selectedAvatar.icon color={selectedAvatar.color} size={24} />}
+              </View>
+              <View style={styles.storyTextContainer}>
+                <View style={styles.storyTitleRow}>
+                  <Text style={styles.storyTitle} numberOfLines={1}>{story.title}</Text>
+                  {isScheduled && (
+                    <View style={styles.scheduledBadge}>
+                      <Clock color="#7c3aed" size={11} />
+                      <Text style={styles.scheduledBadgeText}>Scheduled</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.storyDesc} numberOfLines={2}>{stripHTML(story.text)}</Text>
+                {!isScheduled && (
+                  <View style={styles.storyMetaRow}>
+                    <Eye color="#94a3b8" size={12} />
+                    <Text style={styles.storyMetaText}>
+                      {readerCount > 0 ? `${readerCount} reader${readerCount === 1 ? '' : 's'}` : 'No readers yet'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+
+        {allMyStories.length > 2 && (
+          <TouchableOpacity
+            style={styles.seeMoreBtn}
+            onPress={() =>
+              navigation.navigate('MyStories', {
+                stories: allMyStories,
+                avatarId: userProfile?.avatar_url,
+                readerCounts: storyReaderCounts,
+              })
+            }
+          >
+            <Text style={styles.seeMoreText}>See all {allMyStories.length} stories →</Text>
           </TouchableOpacity>
-        ))}
+        )}
 
         <View style={styles.settingsMenuCard}>
           <TouchableOpacity style={[styles.menuRow, styles.menuRowBorder]} onPress={() => navigation.navigate('SavedStories')}>
@@ -290,11 +405,34 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#1e293b',
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '900',
     color: '#1e293b',
-    marginBottom: 16,
+  },
+  seeAllText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#6366f1',
+  },
+  seeMoreBtn: {
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 24,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  seeMoreText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#6366f1',
   },
   storyCard: {
     flexDirection: 'row',
@@ -323,6 +461,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#64748b',
     lineHeight: 20,
+  },
+  storyMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+  },
+  storyMetaText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#94a3b8',
   },
   settingsMenuCard: {
     borderWidth: 1,
@@ -396,6 +545,26 @@ const styles = StyleSheet.create({
     borderRadius: 42,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  storyTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 2,
+  },
+  scheduledBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#ede9fe',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 20,
+  },
+  scheduledBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#7c3aed',
   },
 });
 

@@ -5,6 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigation';
 import { db } from '../lib/db';
 import { ArrowLeft } from 'lucide-react-native';
+import AppLogo from '../components/AppLogo';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>;
@@ -47,11 +48,7 @@ const ForgotPasswordScreen = ({ navigation }: Props) => {
           </TouchableOpacity>
 
           <View style={styles.logoContainer}>
-            <View style={styles.logoOuterCircle}>
-              <View style={styles.logoInnerCircle}>
-                <Text style={styles.logoText}>HAVEN</Text>
-              </View>
-            </View>
+            <AppLogo size={108} showShadow />
           </View>
 
           <Text style={styles.title}>FORGOT PASSWORD</Text>
@@ -109,30 +106,6 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     marginBottom: 32,
-  },
-  logoOuterCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#0ea5e9',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 4,
-    borderColor: '#fde047',
-  },
-  logoInnerCircle: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: '#bae6fd',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoText: {
-    color: '#ec4899',
-    fontSize: 14,
-    fontWeight: '800',
-    marginBottom: 4,
   },
   title: {
     fontSize: 32,

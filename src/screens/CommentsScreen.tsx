@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Heart, Smile, Image as ImageIcon, Send } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image, Alert } from 'react-native';
+import { X, Heart, Image as ImageIcon, Send } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigation';
@@ -16,7 +15,7 @@ type Props = {
 
 const CommentsScreen = ({ navigation, route }: Props) => {
   const { storyId } = route.params;
-  const { comments, addComment, toggleLikeComment, userProfile } = useAppContext();
+  const { comments, addComment, toggleLikeComment, userProfile, stories, fetchComments } = useAppContext();
   
   const [inputText, setInputText] = useState('');
   const [replyTo, setReplyTo] = useState<{id: string, author: string} | null>(null);
@@ -24,8 +23,19 @@ const CommentsScreen = ({ navigation, route }: Props) => {
 
   const storyComments = comments.filter(c => c.storyId === storyId);
   const currentUserAvatar = getAvatarById(userProfile?.avatar_url);
+  const story = stories.find(item => item.id === storyId);
+  const commentsEnabled = story?.allowComments !== false;
+
+  useEffect(() => {
+    fetchComments(storyId);
+  }, [fetchComments, storyId]);
 
   const handleSend = () => {
+    if (!commentsEnabled) {
+      Alert.alert('Comments disabled', 'This post does not allow comments.');
+      return;
+    }
+
     if (inputText.trim() || selectedImage) {
       addComment(storyId, inputText.trim(), replyTo?.id, selectedImage || undefined);
       setInputText('');
@@ -95,14 +105,16 @@ const CommentsScreen = ({ navigation, route }: Props) => {
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Comments · {storyComments.length}</Text>
+          <Text style={styles.headerTitle}>{commentsEnabled ? `Comments · ${storyComments.length}` : 'Comments off'}</Text>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <X color="#1e293b" size={24} />
           </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.commentsList} showsVerticalScrollIndicator={false}>
-          {renderComments(storyComments)}
+          {commentsEnabled ? renderComments(storyComments) : (
+            <Text style={styles.disabledText}>The author turned off comments for this post.</Text>
+          )}
         </ScrollView>
 
         {/* Input Area */}
@@ -135,12 +147,13 @@ const CommentsScreen = ({ navigation, route }: Props) => {
             <View style={styles.inputWrapper}>
               <TextInput 
                 style={styles.textInput} 
-                placeholder="Add a comment..." 
+                placeholder={commentsEnabled ? "Add a comment..." : "Comments are disabled"} 
                 placeholderTextColor="#94a3b8"
                 value={inputText}
                 onChangeText={setInputText}
+                editable={commentsEnabled}
               />
-              <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
+              <TouchableOpacity style={styles.sendButton} onPress={handleSend} disabled={!commentsEnabled}>
                 <Send color="#facc15" size={20} />
               </TouchableOpacity>
             </View>
@@ -193,6 +206,12 @@ const styles = StyleSheet.create({
   commentsList: {
     paddingHorizontal: 20,
     paddingTop: 16,
+  },
+  disabledText: {
+    fontSize: 15,
+    color: '#64748b',
+    textAlign: 'center',
+    paddingVertical: 24,
   },
   commentItem: {
     flexDirection: 'row',

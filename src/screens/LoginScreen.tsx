@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigation';
 import { db } from '../lib/db';
+import AppLogo from '../components/AppLogo';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
@@ -29,8 +30,6 @@ const LoginScreen = ({ navigation }: Props) => {
 
     if (error) {
       Alert.alert('Login Failed', error.message);
-    } else {
-      navigation.navigate('Home');
     }
   };
 
@@ -43,11 +42,7 @@ const LoginScreen = ({ navigation }: Props) => {
         <ScrollView contentContainerStyle={styles.container}>
           
           <View style={styles.logoContainer}>
-            <View style={styles.logoOuterCircle}>
-              <View style={styles.logoInnerCircle}>
-                <Text style={styles.logoText}>HAVEN</Text>
-              </View>
-            </View>
+            <AppLogo size={108} showShadow />
           </View>
 
           <Text style={styles.title}>LOGIN</Text>
@@ -77,7 +72,7 @@ const LoginScreen = ({ navigation }: Props) => {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color="#1e293b" />
+                <Text style={styles.buttonText}>Logging in...</Text>
               ) : (
                 <Text style={styles.buttonText}>LOGIN</Text>
               )}
@@ -113,30 +108,6 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     marginBottom: 32,
-  },
-  logoOuterCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#0ea5e9',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 4,
-    borderColor: '#fde047',
-  },
-  logoInnerCircle: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: '#bae6fd',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoText: {
-    color: '#ec4899',
-    fontSize: 14,
-    fontWeight: '800',
-    marginBottom: 4,
   },
   title: {
     fontSize: 48,

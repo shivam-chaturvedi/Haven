@@ -1,7 +1,8 @@
-import React from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import LoginScreen from '../screens/LoginScreen';
@@ -24,6 +25,8 @@ import HelpCenterScreen from '../screens/HelpCenterScreen';
 import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
 import SavedStoriesScreen from '../screens/SavedStoriesScreen';
 import LikedStoriesScreen from '../screens/LikedStoriesScreen';
+import EditPostScreen from '../screens/EditPostScreen';
+import MyStoriesScreen from '../screens/MyStoriesScreen';
 import { AppProvider, useAppContext } from '../context/AppContext';
 
 export type RootStackParamList = {
@@ -49,54 +52,93 @@ export type RootStackParamList = {
   TermsOfService: undefined;
   SavedStories: undefined;
   LikedStories: undefined;
+  EditPost: { storyId: string };
+  MyStories: {
+    stories: Array<{ id: string; title: string; text: string; scheduled_for: string | null; is_anonymous: boolean }>;
+    avatarId: string | undefined;
+    readerCounts: Record<string, number>;
+  };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const HAS_SEEN_WELCOME_KEY = 'haven_has_seen_welcome';
 
 const RootNavigator = () => {
-  const { user, isLoading } = useAppContext();
+  const { user, isAuthReady, cachedIsLoggedIn } = useAppContext();
+  const [unauthInitialRoute, setUnauthInitialRoute] = useState<'Login' | 'Onboarding'>('Login');
+  const showApp = !!user || cachedIsLoggedIn;
 
-  if (isLoading) {
-    return <View style={{ flex: 1, backgroundColor: '#FFFFFF' }} />;
+  useEffect(() => {
+    let cancelled = false;
+
+    AsyncStorage.getItem(HAS_SEEN_WELCOME_KEY)
+      .then((hasSeenWelcome) => {
+        if (cancelled) return;
+        setUnauthInitialRoute(hasSeenWelcome === 'true' ? 'Login' : 'Onboarding');
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setUnauthInitialRoute('Login');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (user || unauthInitialRoute !== 'Onboarding') return;
+
+    AsyncStorage.setItem(HAS_SEEN_WELCOME_KEY, 'true').catch((error) => {
+      console.warn('[resolveWelcomeFlow] Failed to persist welcome flag:', error);
+    });
+  }, [user, unauthInitialRoute]);
+
+  if (!isAuthReady && !cachedIsLoggedIn) {
+    return <View style={styles.bootScreen} />;
   }
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {user ? (
-          <>
-            <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen name="StoryDetail" component={StoryDetailScreen} />
-            <Stack.Screen 
-              name="Comments" 
-              component={CommentsScreen} 
-              options={{ presentation: 'transparentModal' }}
-            />
-            <Stack.Screen name="NewPost" component={NewPostScreen} />
-            <Stack.Screen name="FunActivities" component={FunActivitiesScreen} />
-            <Stack.Screen name="Profile" component={ProfileScreen} />
-            <Stack.Screen name="Settings" component={SettingsScreen} />
-            <Stack.Screen name="Notifications" component={NotificationsScreen} />
-            <Stack.Screen name="Search" component={SearchScreen} />
-            <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-            <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
-            <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />
-            <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
-            <Stack.Screen name="SavedStories" component={SavedStoriesScreen} />
-            <Stack.Screen name="LikedStories" component={LikedStoriesScreen} />
-          </>
-        ) : (
-          <>
-            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-            <Stack.Screen name="SignUp" component={SignUpScreen} />
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-            <Stack.Screen name="OnboardingStep1" component={OnboardingStep1Screen} />
-            <Stack.Screen name="OnboardingStep2" component={OnboardingStep2Screen} />
-            <Stack.Screen name="OnboardingStep3" component={OnboardingStep3Screen} />
-          </>
-        )}
-      </Stack.Navigator>
+      {showApp ? (
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Home" component={HomeScreen} />
+          <Stack.Screen name="StoryDetail" component={StoryDetailScreen} />
+          <Stack.Screen
+            name="Comments"
+            component={CommentsScreen}
+            options={{ presentation: 'transparentModal' }}
+          />
+          <Stack.Screen name="NewPost" component={NewPostScreen} />
+          <Stack.Screen name="FunActivities" component={FunActivitiesScreen} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="Settings" component={SettingsScreen} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} />
+          <Stack.Screen name="Search" component={SearchScreen} />
+          <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+          <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
+          <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />
+          <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
+          <Stack.Screen name="SavedStories" component={SavedStoriesScreen} />
+          <Stack.Screen name="LikedStories" component={LikedStoriesScreen} />
+          <Stack.Screen name="EditPost" component={EditPostScreen} />
+          <Stack.Screen name="MyStories" component={MyStoriesScreen} />
+        </Stack.Navigator>
+      ) : (
+        <Stack.Navigator
+          initialRouteName={unauthInitialRoute}
+          screenOptions={{ headerShown: false }}
+        >
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+          <Stack.Screen name="SignUp" component={SignUpScreen} />
+          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          <Stack.Screen name="OnboardingStep1" component={OnboardingStep1Screen} />
+          <Stack.Screen name="OnboardingStep2" component={OnboardingStep2Screen} />
+          <Stack.Screen name="OnboardingStep3" component={OnboardingStep3Screen} />
+        </Stack.Navigator>
+      )}
     </NavigationContainer>
   );
 };
@@ -110,3 +152,10 @@ const AppNavigation = () => {
 };
 
 export default AppNavigation;
+
+const styles = StyleSheet.create({
+  bootScreen: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+});

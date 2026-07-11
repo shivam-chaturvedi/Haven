@@ -21,10 +21,16 @@ SELECT
   s.title,
   s.text,
   s.image_url,
+  s.location,
+  s.is_anonymous,
+  s.allow_comments,
+  s.is_sensitive,
+  s.scheduled_for,
   s.created_at,
   s.author_id,
   p.full_name as author_name,
   p.avatar_url as author_avatar,
+  p.location as author_location,
   (SELECT COUNT(*) FROM public.story_likes sl WHERE sl.story_id = s.id) as like_count,
   (SELECT COUNT(*) FROM public.comments c WHERE c.story_id = s.id) as comment_count
 FROM public.stories s

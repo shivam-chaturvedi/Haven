@@ -1,4 +1,4 @@
-import { Cat, Dog, Bird, Smile, Sun, Star, Heart, Music, Zap } from 'lucide-react-native';
+import { Cat, Dog, Bird, Smile, Sun, Star, Heart, Music, Zap, Ghost } from 'lucide-react-native';
 
 export const DEFAULT_AVATARS = [
   { id: 'cat', icon: Cat, bgColor: '#ffedd5', color: '#f97316' },
@@ -12,6 +12,10 @@ export const DEFAULT_AVATARS = [
   { id: 'zap', icon: Zap, bgColor: '#ccfbf1', color: '#14b8a6' },
 ];
 
+// Default avatar shown for all anonymous posts
+export const ANONYMOUS_AVATAR = { id: 'anonymous', icon: Ghost, bgColor: '#e2e8f0', color: '#64748b' };
+
 export const getAvatarById = (id?: string) => {
   return DEFAULT_AVATARS.find(a => a.id === id) || null;
 };
+

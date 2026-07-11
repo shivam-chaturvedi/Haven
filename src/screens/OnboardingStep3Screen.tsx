@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Image } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigation';
+import AppLogo from '../components/AppLogo';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'OnboardingStep3'>;
@@ -14,11 +15,12 @@ const OnboardingStep3Screen = ({ navigation }: Props) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* Top Header Buttons */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={styles.headerText}>Back</Text>
           </TouchableOpacity>
+          <AppLogo size={40} />
+          <View style={styles.headerSpacer} />
         </View>
 
         {/* Illustration Placeholder */}
@@ -66,8 +68,12 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingTop: 16,
+  },
+  headerSpacer: {
+    width: 48,
   },
   headerText: {
     color: '#64748b',

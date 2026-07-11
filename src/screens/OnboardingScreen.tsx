@@ -1,14 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigation';
+import AppLogo from '../components/AppLogo';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Onboarding'>;
 };
-
-const { width } = Dimensions.get('window');
 
 const OnboardingScreen = ({ navigation }: Props) => {
   return (
@@ -17,13 +16,8 @@ const OnboardingScreen = ({ navigation }: Props) => {
         {/* Top Right Skip Button Removed */}
         <View style={styles.header} />
 
-        {/* Illustration */}
         <View style={styles.illustrationContainer}>
-          <Image 
-            source={require('../assets/images/haven-welcome.jpg')} 
-            style={styles.illustrationImage}
-            resizeMode="cover"
-          />
+          <AppLogo size={220} showShadow />
         </View>
 
         {/* Content Section */}
@@ -74,11 +68,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  illustrationImage: {
-    width: width * 0.8,
-    height: width * 0.8,
-    borderRadius: 20,
   },
   contentContainer: {
     alignItems: 'center',

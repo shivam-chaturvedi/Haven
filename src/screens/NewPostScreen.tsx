@@ -1,21 +1,71 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, Image, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Image as ImageIcon, Video, Hash, EyeOff, Home, Share, PartyPopper, User, Users, MessageCircle, AlertTriangle, Calendar, X } from 'lucide-react-native';
+import { ArrowLeft, Image as ImageIcon, Video, Hash, EyeOff, Home, Share, PartyPopper, User, MessageCircle, AlertTriangle, Calendar, X } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigation';
 import { launchImageLibrary } from 'react-native-image-picker';
+import type { Asset } from 'react-native-image-picker';
 import { RichText, Toolbar, useEditorBridge, TenTapStartKit, PlaceholderBridge } from '@10play/tentap-editor';
 import DatePicker from 'react-native-date-picker';
 import { useAppContext } from '../context/AppContext';
 import { getAvatarById } from '../constants/avatars';
+import { db } from '../lib/db';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'NewPost'>;
 };
 
+type SelectedMedia = {
+  uri: string;
+  type: 'image' | 'video';
+  mimeType?: string;
+  fileName?: string;
+};
+
+const getFileExtension = (asset: SelectedMedia) => {
+  const fromName = asset.fileName?.split('.').pop();
+  if (fromName) return fromName.toLowerCase();
+
+  const fromMime = asset.mimeType?.split('/').pop();
+  if (fromMime) return fromMime.toLowerCase();
+
+  return asset.type === 'video' ? 'mp4' : 'jpg';
+};
+
+const uploadPostMedia = async (asset: SelectedMedia) => {
+  const response = await fetch(asset.uri);
+  const body = await response.arrayBuffer();
+  const extension = getFileExtension(asset);
+  const path = `${asset.type}s/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+
+  const { error } = await db.storage
+    .from('post_images')
+    .upload(path, body, {
+      contentType: asset.mimeType || (asset.type === 'video' ? 'video/mp4' : 'image/jpeg'),
+    });
+
+  if (error) {
+    throw error;
+  }
+
+  const { data } = db.storage.from('post_images').getPublicUrl(path);
+  return data.publicUrl;
+};
+
+const toSelectedMedia = (asset: Asset, type: 'image' | 'video'): SelectedMedia | null => {
+  if (!asset.uri) return null;
+
+  return {
+    uri: asset.uri,
+    type,
+    mimeType: asset.type,
+    fileName: asset.fileName,
+  };
+};
+
 const NewPostScreen = ({ navigation }: Props) => {
-  const { userProfile } = useAppContext();
+  const { userProfile, addStory } = useAppContext();
   const currentUserAvatar = getAvatarById(userProfile?.avatar_url);
 
   const editor = useEditorBridge({
@@ -27,8 +77,8 @@ const NewPostScreen = ({ navigation }: Props) => {
       PlaceholderBridge.configureExtension({ placeholder: "Share what is on your mind..." })
     ],
   });
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<SelectedMedia | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<SelectedMedia | null>(null);
   
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -39,8 +89,11 @@ const NewPostScreen = ({ navigation }: Props) => {
   
   const [scheduledDate, setScheduledDate] = useState<Date | null>(null);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
 
   const handlePost = async () => {
+    if (isPosting) return;
+
     let content = '';
     if (editor) {
       try {
@@ -54,15 +107,51 @@ const NewPostScreen = ({ navigation }: Props) => {
       Alert.alert('Empty Post', 'Please enter some content or select an image/video to post.');
       return;
     }
-    // Simulate posting action
-    navigation.navigate('Home');
+
+    const tempElement = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    const title = tags[0]?.replace(/^#/, '') || tempElement.slice(0, 60) || 'Untitled Story';
+
+    const selectedMedia = [selectedImage, selectedVideo].filter(Boolean) as SelectedMedia[];
+    const media: { type: 'image' | 'video'; url: string }[] = [];
+    setIsPosting(true);
+
+    try {
+      for (const item of selectedMedia) {
+        const publicUrl = await uploadPostMedia(item);
+        media.push({ type: item.type, url: publicUrl });
+      }
+
+      const finalImageUrl = media.length > 0 ? JSON.stringify(media) : undefined;
+
+      const didSave = await addStory({
+        title,
+        text: content,
+        imageUrl: finalImageUrl,
+        isAnonymous: postAnonymously,
+        allowComments,
+        isSensitive: sensitiveContent,
+        scheduledFor: scheduledDate ? scheduledDate.toISOString() : null,
+      });
+
+      if (!didSave) {
+        Alert.alert('Post failed', 'We could not save your post. Please verify the database schema and try again.');
+        return;
+      }
+
+      navigation.navigate('Home');
+    } catch (error) {
+      console.warn('Error creating post:', error);
+      Alert.alert('Post failed', 'We could not upload your image or video. Please try again.');
+    } finally {
+      setIsPosting(false);
+    }
   };
 
   const handlePickPhoto = async () => {
     try {
       const result = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
       if (!result.didCancel && result.assets && result.assets.length > 0) {
-        setSelectedImage(result.assets[0].uri || null);
+        setSelectedImage(toSelectedMedia(result.assets[0], 'image'));
       }
     } catch (err) {
       console.log('Error picking photo', err);
@@ -73,7 +162,7 @@ const NewPostScreen = ({ navigation }: Props) => {
     try {
       const result = await launchImageLibrary({ mediaType: 'video' });
       if (!result.didCancel && result.assets && result.assets.length > 0) {
-        setSelectedVideo(result.assets[0].uri || null);
+        setSelectedVideo(toSelectedMedia(result.assets[0], 'video'));
       }
     } catch (err) {
       console.log('Error picking video', err);
@@ -113,8 +202,8 @@ const NewPostScreen = ({ navigation }: Props) => {
             </TouchableOpacity>
             <Text style={styles.headerTitle}>New post</Text>
           </View>
-          <TouchableOpacity style={styles.postButton} onPress={handlePost}>
-            <Text style={styles.postButtonText}>Post</Text>
+          <TouchableOpacity style={styles.postButton} onPress={handlePost} disabled={isPosting}>
+            <Text style={styles.postButtonText}>{isPosting ? 'Posting...' : 'Post'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -126,10 +215,6 @@ const NewPostScreen = ({ navigation }: Props) => {
             </View>
             <View>
               <Text style={styles.userName}>{postAnonymously ? 'Anonymous User' : (userProfile?.full_name || 'Anonymous User')}</Text>
-              <View style={styles.privacyDropdown}>
-                <Users color="#475569" size={12} />
-                <Text style={styles.privacyText}>Friends</Text>
-              </View>
             </View>
           </View>
 
@@ -149,7 +234,7 @@ const NewPostScreen = ({ navigation }: Props) => {
             <View style={styles.mediaPreviewsContainer}>
               {selectedImage && (
                 <View style={styles.imagePreviewContainer}>
-                  <Image source={{ uri: selectedImage }} style={styles.imagePreview} />
+                  <Image source={{ uri: selectedImage.uri }} style={styles.imagePreview} />
                   <TouchableOpacity style={styles.removeImageBtn} onPress={() => setSelectedImage(null)}>
                     <X color="#FFF" size={16} />
                   </TouchableOpacity>
@@ -275,6 +360,15 @@ const NewPostScreen = ({ navigation }: Props) => {
               <Calendar color="#1e293b" size={16} style={{ marginLeft: 8 }} />
             </View>
           </TouchableOpacity>
+          {scheduledDate ? (
+            <TouchableOpacity style={styles.clearScheduleBtn} onPress={() => setScheduledDate(null)}>
+              <Text style={styles.clearScheduleText}>Clear scheduled date</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          <TouchableOpacity style={styles.bottomPostButton} onPress={handlePost} disabled={isPosting}>
+            <Text style={styles.bottomPostButtonText}>{isPosting ? 'Posting...' : 'Post now'}</Text>
+          </TouchableOpacity>
           
           <DatePicker
             modal
@@ -339,14 +433,14 @@ const styles = StyleSheet.create({
     color: '#1e293b',
   },
   postButton: {
-    backgroundColor: '#fef08a', // Light yellow
+    backgroundColor: '#facc15',
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 20,
   },
   postButtonText: {
-    color: '#94a3b8',
-    fontWeight: '700',
+    color: '#020617',
+    fontWeight: '800',
     fontSize: 16,
   },
   content: {
@@ -371,21 +465,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#1e293b',
     marginBottom: 4,
-  },
-  privacyDropdown: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f1f5f9',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    gap: 4,
-  },
-  privacyText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#475569',
   },
   editorContainer: {
     borderWidth: 1,
@@ -560,6 +639,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#475569',
+  },
+  clearScheduleBtn: {
+    alignSelf: 'flex-end',
+    marginTop: -20,
+    marginBottom: 24,
+  },
+  clearScheduleText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0ea5e9',
+  },
+  bottomPostButton: {
+    backgroundColor: '#facc15',
+    borderRadius: 24,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: 24,
+  },
+  bottomPostButtonText: {
+    color: '#020617',
+    fontSize: 16,
+    fontWeight: '800',
   },
   bottomNav: {
     flexDirection: 'row',

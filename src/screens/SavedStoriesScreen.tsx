@@ -5,6 +5,7 @@ import { ArrowLeft, Bookmark } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigation';
 import { useAppContext } from '../context/AppContext';
+import { stripHTML } from '../lib/htmlUtils';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'SavedStories'>;
@@ -53,7 +54,7 @@ const SavedStoriesScreen = ({ navigation }: Props) => {
               </View>
               <Text style={styles.storyTitle}>{story.title}</Text>
               <Text style={styles.storyDesc} numberOfLines={2}>
-                {story.text}
+                {stripHTML(story.text)}
               </Text>
               <View style={styles.tagsContainer}>
                 {/* Dummy tags for now */}

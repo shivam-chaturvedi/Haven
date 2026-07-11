@@ -1,0 +1,11 @@
+ALTER TABLE public.stories
+ADD COLUMN IF NOT EXISTS is_anonymous BOOLEAN NOT NULL DEFAULT false;
+
+ALTER TABLE public.stories
+ADD COLUMN IF NOT EXISTS allow_comments BOOLEAN NOT NULL DEFAULT true;
+
+ALTER TABLE public.stories
+ADD COLUMN IF NOT EXISTS is_sensitive BOOLEAN NOT NULL DEFAULT false;
+
+ALTER TABLE public.stories
+ADD COLUMN IF NOT EXISTS scheduled_for TIMESTAMPTZ;

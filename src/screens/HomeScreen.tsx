@@ -1,54 +1,67 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Search, Bell, Home, Share, PartyPopper, User } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigation';
 import { useAppContext } from '../context/AppContext';
-import { getAvatarById } from '../constants/avatars';
+import { getAvatarById, ANONYMOUS_AVATAR } from '../constants/avatars';
+import { stripHTML } from '../lib/htmlUtils';
+import { MediaCarousel } from '../components/MediaCarousel';
+import AppLogo from '../components/AppLogo';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Home'>;
 };
 
 const HomeScreen = ({ navigation }: Props) => {
-  const { stories, isLoadingStories } = useAppContext();
+  const { stories, unreadNotifCount, fetchStories } = useAppContext();
+  const [revealedSensitiveIds, setRevealedSensitiveIds] = useState<string[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchStories();
+    }, [fetchStories])
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerLogo}>Haven</Text>
+        <View style={styles.headerBrand}>
+          <AppLogo size={56} showShadow />
+        </View>
         <View style={styles.headerIcons}>
           <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Search')}>
             <Search color="#1e293b" size={24} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Notifications')}>
-            <Bell color="#1e293b" size={24} />
+            <View style={styles.bellWrapper}>
+              <Bell color="#1e293b" size={24} />
+              {unreadNotifCount > 0 && (
+                <View style={styles.unreadBadge}>
+                  <Text style={styles.unreadBadgeText}>
+                    {unreadNotifCount > 9 ? '9+' : String(unreadNotifCount)}
+                  </Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Feed */}
       <ScrollView style={styles.feed} showsVerticalScrollIndicator={false}>
-        {isLoadingStories ? (
-          [1, 2, 3].map((key) => (
-            <View key={key} style={styles.post}>
-              <View style={styles.postHeader}>
-                <View style={[styles.avatarPlaceholder, { backgroundColor: '#e2e8f0' }]} />
-                <View style={styles.postMeta}>
-                  <View style={{ width: 120, height: 16, backgroundColor: '#e2e8f0', borderRadius: 8, marginBottom: 6 }} />
-                  <View style={{ width: 80, height: 12, backgroundColor: '#e2e8f0', borderRadius: 6 }} />
-                </View>
-              </View>
-              <View style={{ width: '100%', height: 14, backgroundColor: '#e2e8f0', borderRadius: 7, marginBottom: 8 }} />
-              <View style={{ width: '80%', height: 14, backgroundColor: '#e2e8f0', borderRadius: 7, marginBottom: 8 }} />
-              <View style={{ width: '60%', height: 14, backgroundColor: '#e2e8f0', borderRadius: 7 }} />
-            </View>
-          ))
+        {stories.length === 0 ? (
+          <View style={styles.emptyFeed}>
+            <Text style={styles.emptyFeedTitle}>No stories yet</Text>
+            <Text style={styles.emptyFeedText}>Be the first to share something with the community.</Text>
+          </View>
         ) : (
           stories.map(post => {
-            const authorAvatar = getAvatarById(post.avatar_url);
+            const authorAvatar = post.isAnonymous ? ANONYMOUS_AVATAR : (getAvatarById(post.avatar_url) ?? ANONYMOUS_AVATAR);
+            const isSensitiveHidden = post.isSensitive && !revealedSensitiveIds.includes(post.id);
             return (
               <TouchableOpacity 
                 key={post.id} 
@@ -56,23 +69,36 @@ const HomeScreen = ({ navigation }: Props) => {
                 onPress={() => navigation.navigate('StoryDetail', { storyId: post.id })}
               >
                 <View style={styles.postHeader}>
-                  <View style={[styles.avatarPlaceholder, authorAvatar ? { backgroundColor: authorAvatar.bgColor, justifyContent: 'center', alignItems: 'center' } : {}]}>
-                    {authorAvatar && <authorAvatar.icon color={authorAvatar.color} size={24} />}
+                  <View style={[styles.avatarPlaceholder, { backgroundColor: authorAvatar.bgColor, justifyContent: 'center', alignItems: 'center' }]}>
+                    <authorAvatar.icon color={authorAvatar.color} size={24} />
                   </View>
                   <View style={styles.postMeta}>
                     <Text style={styles.postTitle}>{post.title}</Text>
-                    <Text style={styles.postLocation}>{post.author}</Text>
+                    <Text style={styles.postLocation}>
+                      {post.author}
+                      {!post.isAnonymous && post.location ? ` · ${post.location}` : ''}
+                    </Text>
                   </View>
                 </View>
-                <Text style={styles.postText}>
-                  {post.text.length > 200 ? post.text.substring(0, 200) + '...' : post.text}
-                </Text>
-                {/* If you wanted an image rendering based on post.id, you could add it here */}
-                {post.id === 's1' && (
-                  <View style={styles.postImagePlaceholder}>
-                    <Text style={styles.placeholderText}>Image Placeholder: Girl with face paint</Text>
-                  </View>
+                {isSensitiveHidden ? (
+                  <TouchableOpacity
+                    style={styles.sensitiveCard}
+                    onPress={() => setRevealedSensitiveIds(prev => [...prev, post.id])}
+                  >
+                    <Text style={styles.sensitiveTitle}>Sensitive content</Text>
+                    <Text style={styles.sensitiveText}>Tap to reveal this post preview.</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <Text style={styles.postText}>
+                    {stripHTML(post.text).length > 200 ? stripHTML(post.text).substring(0, 200) + '...' : stripHTML(post.text)}
+                  </Text>
                 )}
+                <MediaCarousel 
+                  imageUrl={post.imageUrl}
+                  isSensitive={post.isSensitive}
+                  isSensitiveHidden={isSensitiveHidden}
+                  onRevealSensitive={() => setRevealedSensitiveIds(prev => [...prev, post.id])}
+                />
               </TouchableOpacity>
             );
           })
@@ -112,10 +138,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
   },
-  headerLogo: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#facc15',
+  headerBrand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerIcons: {
     flexDirection: 'row',
@@ -126,6 +152,22 @@ const styles = StyleSheet.create({
   },
   feed: {
     flex: 1,
+  },
+  emptyFeed: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  emptyFeedTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1e293b',
+    marginBottom: 8,
+  },
+  emptyFeedText: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   post: {
     padding: 20,
@@ -163,16 +205,38 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 12,
   },
-  postImagePlaceholder: {
+  postImage: {
     width: '100%',
     height: 200,
-    backgroundColor: '#e2e8f0',
     borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  placeholderText: {
-    color: '#94a3b8',
+  blurredImage: {
+    opacity: 0.35,
+  },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(226, 232, 240, 0.45)',
+    borderRadius: 16,
+  },
+  sensitiveCard: {
+    backgroundColor: '#dbeafe',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+  },
+  sensitiveTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1d4ed8',
+    marginBottom: 4,
+  },
+  sensitiveText: {
+    fontSize: 14,
+    color: '#1e40af',
   },
   bottomNav: {
     flexDirection: 'row',
@@ -186,6 +250,28 @@ const styles = StyleSheet.create({
   navItem: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  bellWrapper: {
+    position: 'relative',
+  },
+  unreadBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -6,
+    backgroundColor: '#ef4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  unreadBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
   },
 });
 
